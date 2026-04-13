@@ -1,0 +1,166 @@
+
+/* RESET */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Inter, Arial;
+  background: #0b0f19;
+  color: white;
+}
+
+/* CONTAINER */
+.container {
+  max-width: 1100px;
+  margin: auto;
+}
+
+/* NAV */
+.nav {
+  display: flex;
+  justify-content: space-between;
+  padding: 25px 0;
+}
+
+.logo {
+  color: #00bfff;
+  font-weight: bold;
+}
+
+.links a {
+  margin-left: 20px;
+  color: rgba(255,255,255,0.7);
+  text-decoration: none;
+}
+
+.links a:hover {
+  color: #00bfff;
+}
+
+/* HERO (FIGMA STYLE CLEAN LAYOUT) */
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 80px 0;
+}
+
+/* TEXT */
+.hero-text {
+  max-width: 500px;
+}
+
+.tag {
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: rgba(0,191,255,0.1);
+  border: 1px solid rgba(0,191,255,0.3);
+  color: #00bfff;
+}
+
+.hero-text h1 {
+  font-size: 54px;
+  margin-top: 20px;
+  line-height: 1.1;
+}
+
+.hero-text h1 span {
+  color: #00bfff;
+}
+
+.hero-text p {
+  margin-top: 15px;
+  color: rgba(255,255,255,0.7);
+}
+
+/* BUTTONS */
+.buttons {
+  margin-top: 20px;
+  display: flex;
+  gap: 15px;
+}
+
+.primary {
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: none;
+  background: #00bfff;
+  color: white;
+  cursor: pointer;
+}
+
+.secondary {
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 1px solid #00bfff;
+  background: transparent;
+  color: #00bfff;
+  cursor: pointer;
+}
+
+/* HERO CARD (FIGMA STYLE RIGHT PANEL) */
+.hero-card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 25px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.stat h3 {
+  color: #00bfff;
+}
+
+/* FEATURES */
+.features {
+  padding: 80px 0;
+  text-align: center;
+}
+
+.features h2 {
+  color: #00bfff;
+  margin-bottom: 40px;
+}
+
+/* GRID */
+.grid {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* CARD */
+.card {
+  width: 280px;
+  padding: 20px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* ABOUT */
+.about {
+  padding: 80px 0;
+  text-align: center;
+}
+
+.about p {
+  max-width: 700px;
+  margin: auto;
+  color: rgba(255,255,255,0.7);
+}
+
+/* FOOTER */
+.footer {
+  text-align: center;
+  padding: 20px;
+  background: #020617;
+  color: rgba(255,255,255,0.6);
+}

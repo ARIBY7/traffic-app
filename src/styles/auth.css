@@ -1,0 +1,109 @@
+
+/* ===== BACKGROUND ===== */
+.auth-container {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(circle at top, #f8f7f7, #f9f9f9);
+  font-family: Arial, sans-serif;
+}
+
+/* ===== CARD ===== */
+.auth-card {
+  width: 360px;
+  padding: 32px;
+  border-radius: 18px;
+  background: rgba(26, 26, 26, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ===== TITLE ===== */
+.auth-card h2 {
+  text-align: center;
+  font-size: 28px;
+  font-weight: bold;
+  color: #00bfff;
+  margin: 0 0 8px 0;
+  letter-spacing: 1px;
+}
+
+/* underline title */
+.auth-card h2::after {
+  content: "";
+  display: block;
+  width: 60px;
+  height: 3px;
+  background: #00bfff;
+  margin: 8px auto 0;
+  border-radius: 10px;
+}
+
+/* ===== FORM ===== */
+.auth-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+}
+
+/* ===== INPUTS ===== */
+.auth-card input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #222;
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.25s ease;
+  margin: 0;
+}
+
+.auth-card input:focus {
+  border-color: #00bfff;
+  box-shadow: 0 0 0 3px rgba(0, 191, 255, 0.15);
+  transform: scale(1.02);
+}
+
+/* ===== BUTTON ===== */
+.auth-card button {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #00bfff, #008cff);
+  color: white;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s ease;
+}
+
+.auth-card button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 191, 255, 0.25);
+}
+
+/* ===== LINK ===== */
+.link {
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.link:hover {
+  color: #00bfff;
+  text-decoration: underline;
+}
