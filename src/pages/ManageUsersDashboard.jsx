@@ -10,11 +10,7 @@ const COLORS = {
 
 const API = "http://localhost:8081";
 
-const ZONES = [
-  "Ain Chock", "Ain Sebaa", "Anfa", "Ben M'sik", "Bernoussi",
-  "Hay Hassani", "Hay Mohammadi", "Maarif", "Medina", "Moulay Rachid",
-  "Sidi Belyout", "Sidi Bernoussi", "Sidi Moumen", "Sidi Othmane", "Autre",
-];
+const ROLES = ["ADMIN", "USER", "OPERATOR"];
 
 function getHeaders() {
   const token = localStorage.getItem("token");
@@ -112,10 +108,10 @@ function Sidebar({ navigate, path }) {
 
       {[
         { label: "Dashboard", icon: "▣", p: "/admin" },
-        { label: "Sensors", icon: "◎", p: "/admin/locations", active: true },
+        { label: "Sensors", icon: "◎", p: "/admin/locations" },
         { label: "Traffic Data", icon: "▦", p: "/admin/traffic" },
         { label: "Congestion", icon: "◈", p: "/admin/congestion" },
-        { label: "Manage Users", icon: "👤", p: "/admin/users" },
+        { label: "Manage Users", icon: "👤", p: "/admin/users", active: true },
         { label: "Statistics", icon: "▤", p: "/admin/statistics" },
       ].map((item) => {
         const active = item.active;
@@ -169,7 +165,7 @@ function Sidebar({ navigate, path }) {
         <div
           onClick={() => {
             localStorage.clear();
-            navigate("/login");
+            navigate("/");
           }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#F0997B")}
           onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.text.muted)}
@@ -231,16 +227,21 @@ function StatCard({ label, value, color, icon }) {
   );
 }
 
-function Badge({ etat }) {
-  const active = etat?.toUpperCase() === "ACTIF";
+function Badge({ role }) {
+  const roleColors = {
+    ADMIN: { bg: COLORS.accent.coral, text: "#F0997B" },
+    USER: { bg: COLORS.accent.teal, text: COLORS.accent.teal },
+    OPERATOR: { bg: COLORS.accent.amber, text: COLORS.accent.amber },
+  };
+  const colors = roleColors[role] || { bg: COLORS.text.muted, text: COLORS.text.muted };
   return (
     <span style={{
       display: "inline-flex",
       alignItems: "center",
       gap: 5,
-      background: active ? `${COLORS.accent.teal}18` : `${COLORS.accent.coral}18`,
-      border: `1px solid ${active ? COLORS.accent.teal : COLORS.accent.coral}44`,
-      color: active ? COLORS.accent.teal : "#F0997B",
+      background: colors.bg + "18",
+      border: `1px solid ${colors.bg}44`,
+      color: colors.text,
       fontSize: "0.72rem",
       fontWeight: 600,
       padding: "0.22rem 0.7rem",
@@ -251,11 +252,11 @@ function Badge({ etat }) {
           width: 5,
           height: 5,
           borderRadius: "50%",
-          background: active ? COLORS.accent.teal : COLORS.accent.coral,
+          background: colors.bg,
           display: "inline-block",
         }}
       />
-      {active ? "ACTIF" : "INACTIF"}
+      {role}
     </span>
   );
 }
@@ -447,7 +448,7 @@ function ActionBtn({ onClick, color, label }) {
   );
 }
 
-function SensorRow({ sensor, last, onEdit, onDelete }) {
+function UserRow({ user, last, onEdit, onDelete }) {
   const [hov, setHov] = useState(false);
   return (
     <div
@@ -455,7 +456,7 @@ function SensorRow({ sensor, last, onEdit, onDelete }) {
       onMouseLeave={() => setHov(false)}
       style={{
         display: "grid",
-        gridTemplateColumns: "55px 1fr 1fr 110px 110px 150px",
+        gridTemplateColumns: "55px 1fr 1.2fr 100px 130px",
         padding: "1rem 1.4rem",
         borderBottom: last ? "none" : "1px solid rgba(127, 119, 221, 0.06)",
         background: hov ? COLORS.bg.hover : "transparent",
@@ -470,7 +471,7 @@ function SensorRow({ sensor, last, onEdit, onDelete }) {
           fontWeight: 600,
         }}
       >
-        #{sensor.id}
+        #{user.id}
       </span>
       <span
         style={{
@@ -479,53 +480,20 @@ function SensorRow({ sensor, last, onEdit, onDelete }) {
           fontWeight: 500,
         }}
       >
-        {sensor.name}
+        {user.name}
       </span>
       <span style={{ fontSize: "0.85rem", color: COLORS.text.muted }}>
-        {sensor.zone}
+        {user.mail}
       </span>
-      <Badge etat={sensor.etat} />
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 5,
-          background: sensor.accidentSignale
-            ? `${COLORS.accent.coral}18`
-            : "rgba(255,255,255,0.04)",
-          border: `1px solid ${
-            sensor.accidentSignale
-              ? COLORS.accent.coral + "44"
-              : "rgba(255,255,255,0.08)"
-          }`,
-          color: sensor.accidentSignale ? "#F0997B" : COLORS.text.muted,
-          fontSize: "0.7rem",
-          fontWeight: 600,
-          padding: "0.22rem 0.65rem",
-          borderRadius: 100,
-        }}
-      >
-        <span
-          style={{
-            width: 5,
-            height: 5,
-            borderRadius: "50%",
-            background: sensor.accidentSignale
-              ? COLORS.accent.coral
-              : COLORS.text.muted,
-            display: "inline-block",
-          }}
-        />
-        {sensor.accidentSignale ? "Accident" : "Normal"}
-      </span>
+      <Badge role={user.role} />
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <ActionBtn
-          onClick={() => onEdit(sensor)}
+          onClick={() => onEdit(user)}
           color={COLORS.primary.light}
           label="Edit"
         />
         <ActionBtn
-          onClick={() => onDelete(sensor)}
+          onClick={() => onDelete(user)}
           color={COLORS.accent.coral}
           label="Delete"
         />
@@ -534,11 +502,11 @@ function SensorRow({ sensor, last, onEdit, onDelete }) {
   );
 }
 
-export default function LocationDashboard() {
+export default function ManageUsersDashboard() {
   const navigate = useNavigate();
   const path = window.location.pathname;
 
-  const [sensors, setSensors] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [searchType, setSearchType] = useState("name");
@@ -551,9 +519,9 @@ export default function LocationDashboard() {
 
   const emptyForm = {
     name: "",
-    zone: ZONES[0],
-    etat: "ACTIF",
-    accidentSignale: false,
+    mail: "",
+    passWord: "",
+    role: ROLES[0],
   };
   const [form, setForm] = useState(emptyForm);
 
@@ -565,7 +533,7 @@ export default function LocationDashboard() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/users/sensors`, {
+      const res = await fetch(`${API}/api/admin/users`, {
         headers: getHeaders(),
       });
       if (res.status === 401) {
@@ -573,7 +541,7 @@ export default function LocationDashboard() {
         return;
       }
       const data = await res.json();
-      setSensors(Array.isArray(data) ? data : []);
+      setUsers(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error(e);
       showToast("Erreur de chargement", "error");
@@ -595,11 +563,12 @@ export default function LocationDashboard() {
     setSearching(true);
     try {
       let url;
-      if (searchType === "id") url = `${API}/api/users/sensorId/${val}`;
       if (searchType === "name")
-        url = `${API}/api/users/sensorName/${encodeURIComponent(val)}`;
-      if (searchType === "zone")
-        url = `${API}/api/users/sensorZone/${encodeURIComponent(val)}`;
+        url = `${API}/api/users/name/${encodeURIComponent(val)}`;
+      if (searchType === "email")
+        url = `${API}/api/users/email/${encodeURIComponent(val)}`;
+      if (searchType === "role")
+        url = `${API}/api/users/role/${encodeURIComponent(val)}`;
 
       const res = await fetch(url, { headers: getHeaders() });
 
@@ -625,14 +594,18 @@ export default function LocationDashboard() {
   };
 
   const handleCreate = async () => {
+    if (!form.name.trim() || !form.mail.trim() || !form.passWord.trim()) {
+      showToast("Remplissez tous les champs", "error");
+      return;
+    }
     try {
-      const res = await fetch(`${API}/api/admin/newSensor`, {
+      const res = await fetch(`${API}/api/users/register`, {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify(form),
       });
       if (!res.ok) throw new Error(`${res.status}`);
-      showToast("Sensor créé avec succès");
+      showToast("Utilisateur créé avec succès");
       setShowCreate(false);
       setForm(emptyForm);
       fetchAll();
@@ -643,14 +616,18 @@ export default function LocationDashboard() {
   };
 
   const handleUpdate = async () => {
+    if (!form.name.trim() || !form.mail.trim()) {
+      showToast("Remplissez tous les champs", "error");
+      return;
+    }
     try {
-      const res = await fetch(`${API}/api/admin/sensor/${showEdit.id}`, {
+      const res = await fetch(`${API}/api/admin/user/${showEdit.id}`, {
         method: "PUT",
         headers: getHeaders(),
         body: JSON.stringify(form),
       });
       if (!res.ok) throw new Error(`${res.status}`);
-      showToast("Sensor mis à jour");
+      showToast("Utilisateur mis à jour");
       setShowEdit(null);
       setForm(emptyForm);
       fetchAll();
@@ -662,12 +639,12 @@ export default function LocationDashboard() {
 
   const handleDelete = async () => {
     try {
-      const res = await fetch(`${API}/api/admin/sensor/${showDelete.id}`, {
+      const res = await fetch(`${API}/api/admin/user/${showDelete.id}`, {
         method: "DELETE",
         headers: getHeaders(),
       });
       if (!res.ok) throw new Error(`${res.status}`);
-      showToast("Sensor supprimé");
+      showToast("Utilisateur supprimé");
       setShowDelete(null);
       clearSearch();
       fetchAll();
@@ -677,23 +654,23 @@ export default function LocationDashboard() {
     }
   };
 
-  const openEdit = (sensor) => {
+  const openEdit = (user) => {
     setForm({
-      name: sensor.name,
-      zone: sensor.zone,
-      etat: sensor.etat || "ACTIF",
-      accidentSignale: sensor.accidentSignale || false,
+      name: user.name,
+      mail: user.mail,
+      passWord: user.passWord || "",
+      role: user.role || ROLES[0],
     });
-    setShowEdit(sensor);
+    setShowEdit(user);
   };
 
-  const displayed = searchResult ?? sensors;
+  const displayed = searchResult ?? users;
 
-  const searchLabels = { name: "Name", id: "ID", zone: "Zone" };
+  const searchLabels = { name: "Name", email: "Email", role: "Role" };
   const searchPlaceholders = {
-    name: "Enter sensor name...",
-    id: "Enter sensor ID...",
-    zone: "Enter zone name...",
+    name: "Enter user name...",
+    email: "Enter user email...",
+    role: "Enter role (ADMIN, USER, OPERATOR)...",
   };
 
   return (
@@ -793,7 +770,7 @@ export default function LocationDashboard() {
                 letterSpacing: "-0.5px",
               }}
             >
-              Sensors
+              Manage Users
             </h1>
             <p
               style={{
@@ -803,7 +780,7 @@ export default function LocationDashboard() {
                 fontWeight: 300,
               }}
             >
-              Manage your traffic sensors
+              Create, edit and manage user accounts
             </p>
           </div>
           <PrimaryBtn
@@ -812,7 +789,7 @@ export default function LocationDashboard() {
               setShowCreate(true);
             }}
           >
-            + New Sensor
+            + New User
           </PrimaryBtn>
         </div>
 
@@ -826,32 +803,28 @@ export default function LocationDashboard() {
         >
           {[
             {
-              label: "Total Sensors",
-              value: sensors.length,
+              label: "Total Users",
+              value: users.length,
               color: COLORS.primary.light,
-              icon: "📡",
+              icon: "👥",
             },
             {
-              label: "Active",
-              value: sensors.filter(
-                (s) => s.etat?.toUpperCase() === "ACTIF"
-              ).length,
-              color: COLORS.accent.teal,
-              icon: "✅",
-            },
-            {
-              label: "Inactive",
-              value: sensors.filter(
-                (s) => s.etat?.toUpperCase() !== "ACTIF"
-              ).length,
+              label: "Admins",
+              value: users.filter((u) => u.role === "ADMIN").length,
               color: COLORS.accent.coral,
-              icon: "⚠️",
+              icon: "🔐",
             },
             {
-              label: "Accidents",
-              value: sensors.filter((s) => s.accidentSignale === true).length,
+              label: "Operators",
+              value: users.filter((u) => u.role === "OPERATOR").length,
               color: COLORS.accent.amber,
-              icon: "🚨",
+              icon: "🚗",
+            },
+            {
+              label: "Users",
+              value: users.filter((u) => u.role === "USER").length,
+              color: COLORS.accent.teal,
+              icon: "👤",
             },
           ].map((stat) => (
             <StatCard
@@ -886,7 +859,7 @@ export default function LocationDashboard() {
               gap: 2,
             }}
           >
-            {["name", "id", "zone"].map((type) => (
+            {["name", "email", "role"].map((type) => (
               <button
                 key={type}
                 onClick={() => {
@@ -986,7 +959,7 @@ export default function LocationDashboard() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "55px 1fr 1fr 110px 110px 150px",
+              gridTemplateColumns: "55px 1fr 1.2fr 100px 130px",
               padding: "0.85rem 1.4rem",
               borderBottom: "1px solid rgba(127, 119, 221, 0.06)",
               fontSize: "0.72rem",
@@ -998,9 +971,8 @@ export default function LocationDashboard() {
           >
             <span>ID</span>
             <span>Name</span>
-            <span>Zone</span>
-            <span>Status</span>
-            <span>Accident</span>
+            <span>Email</span>
+            <span>Role</span>
             <span style={{ textAlign: "right" }}>Actions</span>
           </div>
 
@@ -1024,13 +996,13 @@ export default function LocationDashboard() {
                 fontSize: "0.88rem",
               }}
             >
-              No sensors found
+              No users found
             </div>
           ) : (
-            displayed.map((s, i) => (
-              <SensorRow
-                key={s.id ?? i}
-                sensor={s}
+            displayed.map((u, i) => (
+              <UserRow
+                key={u.id ?? i}
+                user={u}
                 last={i === displayed.length - 1}
                 onEdit={openEdit}
                 onDelete={setShowDelete}
@@ -1041,23 +1013,29 @@ export default function LocationDashboard() {
       </div>
 
       {showCreate && (
-        <Modal title="New Sensor" onClose={() => setShowCreate(false)}>
+        <Modal title="New User" onClose={() => setShowCreate(false)}>
           <FormField
             label="Name"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
           <FormField
-            label="Zone"
-            value={form.zone}
-            onChange={(e) => setForm({ ...form, zone: e.target.value })}
-            options={ZONES}
+            label="Email"
+            value={form.mail}
+            onChange={(e) => setForm({ ...form, mail: e.target.value })}
+            type="email"
           />
           <FormField
-            label="Status"
-            value={form.etat}
-            onChange={(e) => setForm({ ...form, etat: e.target.value })}
-            options={["ACTIF", "INACTIF"]}
+            label="Password"
+            value={form.passWord}
+            onChange={(e) => setForm({ ...form, passWord: e.target.value })}
+            type="password"
+          />
+          <FormField
+            label="Role"
+            value={form.role}
+            onChange={(e) => setForm({ ...form, role: e.target.value })}
+            options={ROLES}
           />
 
           <div
@@ -1083,7 +1061,10 @@ export default function LocationDashboard() {
             >
               Cancel
             </button>
-            <PrimaryBtn onClick={handleCreate} disabled={!form.name.trim()}>
+            <PrimaryBtn
+              onClick={handleCreate}
+              disabled={!form.name.trim() || !form.mail.trim() || !form.passWord.trim()}
+            >
               Create
             </PrimaryBtn>
           </div>
@@ -1101,24 +1082,22 @@ export default function LocationDashboard() {
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
           <FormField
-            label="Zone"
-            value={form.zone}
-            onChange={(e) => setForm({ ...form, zone: e.target.value })}
-            options={ZONES}
+            label="Email"
+            value={form.mail}
+            onChange={(e) => setForm({ ...form, mail: e.target.value })}
+            type="email"
           />
           <FormField
-            label="Status"
-            value={form.etat}
-            onChange={(e) => setForm({ ...form, etat: e.target.value })}
-            options={["ACTIF", "INACTIF"]}
+            label="Password (leave blank to keep current)"
+            value={form.passWord}
+            onChange={(e) => setForm({ ...form, passWord: e.target.value })}
+            type="password"
           />
           <FormField
-            label="Accident signalé"
-            value={form.accidentSignale ? "true" : "false"}
-            onChange={(e) =>
-              setForm({ ...form, accidentSignale: e.target.value === "true" })
-            }
-            options={["false", "true"]}
+            label="Role"
+            value={form.role}
+            onChange={(e) => setForm({ ...form, role: e.target.value })}
+            options={ROLES}
           />
           <div
             style={{
@@ -1143,7 +1122,7 @@ export default function LocationDashboard() {
             >
               Cancel
             </button>
-            <PrimaryBtn onClick={handleUpdate} disabled={!form.name.trim()}>
+            <PrimaryBtn onClick={handleUpdate} disabled={!form.name.trim() || !form.mail.trim()}>
               Save Changes
             </PrimaryBtn>
           </div>
@@ -1152,7 +1131,7 @@ export default function LocationDashboard() {
 
       {showDelete && (
         <Modal
-          title="Delete Sensor"
+          title="Delete User"
           onClose={() => setShowDelete(null)}
         >
           <p
@@ -1163,7 +1142,7 @@ export default function LocationDashboard() {
               marginBottom: "1.5rem",
             }}
           >
-            Are you sure you want to delete sensor{" "}
+            Are you sure you want to delete user{" "}
             <span style={{ color: COLORS.text.primary, fontWeight: 600 }}>
               {showDelete.name}
             </span>

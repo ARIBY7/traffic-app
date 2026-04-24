@@ -7,6 +7,10 @@ import LocationDashboard    from "./pages/LocationDashboard";
 import TrafficDataDashboard from "./pages/TrafficDataDashboard";
 import CongestionDashboard  from "./pages/CongestionDashboard";
 import UserPage             from "./pages/UserPage";
+import ManageUsersDashboard from './pages/ManageUsersDashboard';
+
+
+import SignalsDashboard from "./pages/SignalsDashboard"; 
 
 const PrivateRoute = ({ children, roleRequired }) => {
   const token = localStorage.getItem("token");
@@ -58,6 +62,8 @@ function App() {
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" />} />
 
+        <Route path="/admin/users" element={<ManageUsersDashboard />} /> 
+        <Route path="/admin/signals" element={<SignalsDashboard />} />
       </Routes>
     </BrowserRouter>
   );
