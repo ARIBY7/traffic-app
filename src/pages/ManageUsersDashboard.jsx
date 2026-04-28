@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import Sidebar from "../components/Sidebar";
 
 const COLORS = {
   primary: { light: "#7F77DD", dark: "#534AB7" },
@@ -10,8 +11,6 @@ const COLORS = {
 
 const API = "http://localhost:8081";
 
-const ROLES = ["ADMIN", "USER", "OPERATOR"];
-
 function getHeaders() {
   const token = localStorage.getItem("token");
   return {
@@ -21,303 +20,49 @@ function getHeaders() {
 }
 
 function GlowOrb({ x, y, color, size = 400, opacity = 0.08 }) {
-  return (
-    <div style={{
-      position: "fixed",
-      left: x,
-      top: y,
-      width: size,
-      height: size,
-      borderRadius: "50%",
-      background: color,
-      opacity,
-      filter: "blur(110px)",
-      pointerEvents: "none",
-      zIndex: 0,
-      transform: "translate(-50%, -50%)",
-    }} />
-  );
-}
-
-function Sidebar({ navigate, path }) {
-  return (
-    <div
-      style={{
-        position: "fixed",
-        left: 0,
-        top: 0,
-        bottom: 0,
-        width: 220,
-        background: COLORS.bg.card,
-        borderRight: "1px solid rgba(127, 119, 221, 0.1)",
-        display: "flex",
-        flexDirection: "column",
-        zIndex: 50,
-        padding: "1.5rem 1rem",
-      }}
-    >
-      <div
-        onClick={() => navigate("/")}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          cursor: "pointer",
-          marginBottom: "2.5rem",
-        }}
-      >
-        <div
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 8,
-            background: `linear-gradient(135deg, ${COLORS.primary.light}, ${COLORS.primary.dark})`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 14,
-          }}
-        >
-          🚦
-        </div>
-        <span
-          style={{
-            fontFamily: "'Syne', sans-serif",
-            fontWeight: 800,
-            fontSize: "1rem",
-            color: COLORS.text.primary,
-          }}
-        >
-          TrafficIQ
-        </span>
-      </div>
-
-      <div
-        style={{
-          fontSize: "0.65rem",
-          color: COLORS.text.subtle,
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
-          fontWeight: 700,
-          marginBottom: "0.75rem",
-          paddingLeft: 8,
-        }}
-      >
-        Navigation
-      </div>
-
-      {[
-        { label: "Dashboard", icon: "▣", p: "/admin" },
-        { label: "Sensors", icon: "◎", p: "/admin/locations" },
-        { label: "Traffic Data", icon: "▦", p: "/admin/traffic" },
-        { label: "Congestion", icon: "◈", p: "/admin/congestion" },
-        { label: "Manage Users", icon: "👤", p: "/admin/users", active: true },
-        { label: "Statistics", icon: "▤", p: "/admin/statistics" },
-      ].map((item) => {
-        const active = item.active;
-        return (
-          <div
-            key={item.label}
-            onClick={() => navigate(item.p)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "0.6rem 0.8rem",
-              borderRadius: 10,
-              marginBottom: 3,
-              background: active ? `${COLORS.primary.light}1A` : "transparent",
-              border: active
-                ? `1px solid ${COLORS.primary.light}30`
-                : "1px solid transparent",
-              cursor: "pointer",
-              transition: "all 0.15s",
-              color: active ? COLORS.primary.light : COLORS.text.muted,
-              fontSize: "0.875rem",
-              fontWeight: active ? 600 : 400,
-            }}
-          >
-            <span style={{ fontSize: 14 }}>{item.icon}</span>
-            {item.label}
-            {active && (
-              <div
-                style={{
-                  marginLeft: "auto",
-                  width: 5,
-                  height: 5,
-                  borderRadius: "50%",
-                  background: COLORS.primary.light,
-                }}
-              />
-            )}
-          </div>
-        );
-      })}
-
-      <div style={{ marginTop: "auto" }}>
-        <div
-          style={{
-            height: 1,
-            background: "rgba(127, 119, 221, 0.1)",
-            margin: "0.75rem 0",
-          }}
-        />
-        <div
-          onClick={() => {
-            localStorage.clear();
-            navigate("/");
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#F0997B")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.text.muted)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "0.6rem 0.8rem",
-            borderRadius: 10,
-            cursor: "pointer",
-            color: COLORS.text.muted,
-            fontSize: "0.875rem",
-            transition: "color 0.15s",
-          }}
-        >
-          <span style={{ fontSize: 14 }}>⎋</span> Logout
-        </div>
-      </div>
-    </div>
-  );
+  return <div style={{ position:"fixed", left:x, top:y, width:size, height:size, borderRadius:"50%", background:color, opacity, filter:"blur(110px)", pointerEvents:"none", zIndex:0, transform:"translate(-50%,-50%)" }} />;
 }
 
 function StatCard({ label, value, color, icon }) {
   return (
-    <div
-      style={{
-        background: COLORS.bg.card,
-        border: "1px solid rgba(127, 119, 221, 0.1)",
-        borderTop: `2px solid ${color}`,
-        borderRadius: 12,
-        padding: "1.1rem 1.3rem",
-        textAlign: "center",
-      }}
-    >
-      <div style={{ fontSize: 20, marginBottom: 8 }}>{icon}</div>
-      <div
-        style={{
-          fontFamily: "'Syne', sans-serif",
-          fontSize: "1.7rem",
-          fontWeight: 800,
-          color: color,
-          marginBottom: 4,
-        }}
-      >
-        {value}
-      </div>
-      <div
-        style={{
-          fontSize: "0.68rem",
-          color: COLORS.text.muted,
-          textTransform: "uppercase",
-          letterSpacing: "0.1em",
-          fontWeight: 700,
-        }}
-      >
-        {label}
-      </div>
+    <div style={{ background:COLORS.bg.card, border:"1px solid rgba(127,119,221,0.1)", borderTop:`2px solid ${color}`, borderRadius:12, padding:"1.1rem 1.3rem", textAlign:"center" }}>
+      <div style={{ fontSize:20, marginBottom:8 }}>{icon}</div>
+      <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.7rem", fontWeight:800, color, marginBottom:4 }}>{value}</div>
+      <div style={{ fontSize:"0.68rem", color:COLORS.text.muted, textTransform:"uppercase", letterSpacing:"0.1em", fontWeight:700 }}>{label}</div>
     </div>
   );
 }
 
-function Badge({ role }) {
-  const roleColors = {
-    ADMIN: { bg: COLORS.accent.coral, text: "#F0997B" },
-    USER: { bg: COLORS.accent.teal, text: COLORS.accent.teal },
-    OPERATOR: { bg: COLORS.accent.amber, text: COLORS.accent.amber },
-  };
-  const colors = roleColors[role] || { bg: COLORS.text.muted, text: COLORS.text.muted };
+function StatusBadge({ active }) {
   return (
-    <span style={{
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 5,
-      background: colors.bg + "18",
-      border: `1px solid ${colors.bg}44`,
-      color: colors.text,
-      fontSize: "0.72rem",
-      fontWeight: 600,
-      padding: "0.22rem 0.7rem",
-      borderRadius: 100,
-    }}>
-      <span
-        style={{
-          width: 5,
-          height: 5,
-          borderRadius: "50%",
-          background: colors.bg,
-          display: "inline-block",
-        }}
-      />
-      {role}
+    <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:active?`${COLORS.accent.teal}18`:`${COLORS.accent.coral}18`, border:`1px solid ${active?COLORS.accent.teal:COLORS.accent.coral}44`, color:active?COLORS.accent.teal:"#F0997B", fontSize:"0.7rem", fontWeight:700, padding:"0.2rem 0.65rem", borderRadius:100 }}>
+      <span style={{ width:4, height:4, borderRadius:"50%", background:active?COLORS.accent.teal:COLORS.accent.coral, display:"inline-block" }} />
+      {active ? "Active" : "Inactive"}
     </span>
   );
 }
 
-function Modal({ title, onClose, children }) {
+function ReportStatusBadge({ status }) {
+  const map = {
+    PENDING:  { color: COLORS.accent.amber, label: "Pending"  },
+    APPROVED: { color: COLORS.accent.teal,  label: "Approved" },
+    REJECTED: { color: COLORS.accent.coral, label: "Rejected" },
+  };
+  const s = map[status] || map.PENDING;
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 200,
-        background: "rgba(0,0,0,0.72)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "1rem",
-      }}
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: COLORS.bg.card,
-          border: "1px solid rgba(255,255,255,0.09)",
-          borderRadius: 16,
-          padding: "2rem",
-          width: "100%",
-          maxWidth: 440,
-          boxShadow: "0 24px 80px rgba(0,0,0,0.6)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: "1.5rem",
-          }}
-        >
-          <h3
-            style={{
-              fontFamily: "'Syne', sans-serif",
-              fontSize: "1.1rem",
-              fontWeight: 700,
-              color: COLORS.text.primary,
-            }}
-          >
-            {title}
-          </h3>
-          <button
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              color: COLORS.text.muted,
-              fontSize: "1.2rem",
-              cursor: "pointer",
-            }}
-          >
-            ✕
-          </button>
+    <span style={{ background:s.color+"18", border:`1px solid ${s.color}44`, color:s.color, fontSize:"0.7rem", fontWeight:700, padding:"0.2rem 0.65rem", borderRadius:100 }}>
+      {s.label}
+    </span>
+  );
+}
+
+function Modal({ title, onClose, children, wide }) {
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(0,0,0,0.8)", display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem" }} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{ background:COLORS.bg.card, border:"1px solid rgba(255,255,255,0.09)", borderRadius:16, padding:"2rem", width:"100%", maxWidth:wide?620:460, maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 80px rgba(0,0,0,0.7)" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"1.5rem" }}>
+          <h3 style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.1rem", fontWeight:700, color:COLORS.text.primary }}>{title}</h3>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:COLORS.text.muted, fontSize:"1.2rem", cursor:"pointer" }}>✕</button>
         </div>
         {children}
       </div>
@@ -325,221 +70,158 @@ function Modal({ title, onClose, children }) {
   );
 }
 
-function FormField({ label, value, onChange, type = "text", options }) {
-  const [focused, setFocused] = useState(false);
-  const base = {
-    width: "100%",
-    background: focused ? COLORS.bg.hover : "rgba(255,255,255,0.04)",
-    border: `1px solid ${
-      focused ? COLORS.primary.light + "99" : "rgba(255,255,255,0.1)"
-    }`,
-    borderRadius: 8,
-    padding: "0.72rem 1rem",
-    fontSize: "0.88rem",
-    color: COLORS.text.primary,
-    outline: "none",
-    fontFamily: "inherit",
-    transition: "all 0.2s",
-    boxShadow: focused ? `0 0 0 3px ${COLORS.primary.light}18` : "none",
-  };
-  return (
-    <div style={{ marginBottom: 14 }}>
-      <label
-        style={{
-          display: "block",
-          fontSize: "0.75rem",
-          color: "#7C7A99",
-          marginBottom: 6,
-          fontWeight: 500,
-          letterSpacing: "0.05em",
-          textTransform: "uppercase",
-        }}
-      >
-        {label}
-      </label>
-      {options ? (
-        <select
-          value={value}
-          onChange={onChange}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          style={{ ...base, cursor: "pointer" }}
-        >
-          {options.map((o) => (
-            <option key={o} value={o} style={{ background: COLORS.bg.card }}>
-              {o}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <input
-          type={type}
-          value={value}
-          onChange={onChange}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          style={base}
-        />
-      )}
-    </div>
-  );
-}
+// ── USER PROFILE MODAL ──────────────────────────────────
+// Utilise GET /api/admin/userDetails/{id}
+function UserProfileModal({ user, onClose, onDelete, reports }) {
+  const [details, setDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(true);
+  const navigate = useNavigate();
 
-function PrimaryBtn({ children, onClick, disabled, danger }) {
-  const [hov, setHov] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        background: disabled
-          ? "rgba(255,255,255,0.06)"
-          : danger
-          ? hov
-            ? "#b84a25"
-            : COLORS.accent.coral
-          : hov
-          ? COLORS.primary.light
-          : `linear-gradient(135deg, ${COLORS.primary.light}, ${COLORS.primary.dark})`,
-        color: disabled ? COLORS.text.muted : COLORS.text.primary,
-        border: "none",
-        borderRadius: 8,
-        padding: "0.72rem 1.4rem",
-        fontSize: "0.88rem",
-        fontWeight: 600,
-        cursor: disabled ? "not-allowed" : "pointer",
-        fontFamily: "inherit",
-        transition: "all 0.18s",
-        boxShadow:
-          hov && !disabled
-            ? `0 0 20px ${danger ? COLORS.accent.coral : COLORS.primary.light}44`
-            : "none",
-      }}
-    >
-      {children}
-    </button>
-  );
-}
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch(`${API}/api/admin/userDetails/${user.id}`, { headers: getHeaders() });
+        if (res.status === 401) { navigate("/login"); return; }
+        if (!res.ok) { setDetails(user); return; }
+        setDetails(await res.json());
+      } catch (e) { setDetails(user); }
+      finally { setLoadingDetails(false); }
+    };
+    load();
+  }, [user.id]);
 
-function ActionBtn({ onClick, color, label }) {
-  const [hov, setHov] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        background: hov ? color + "22" : "rgba(255,255,255,0.04)",
-        border: `1px solid ${hov ? color + "55" : "rgba(255,255,255,0.08)"}`,
-        color: hov ? color : "#7C7A99",
-        borderRadius: 6,
-        padding: "0.35rem 0.75rem",
-        fontSize: "0.78rem",
-        fontWeight: 600,
-        cursor: "pointer",
-        fontFamily: "inherit",
-        transition: "all 0.18s",
-      }}
-    >
-      {label}
-    </button>
-  );
-}
+  const userReports = reports.filter(r => r.userId === user.id);
 
-function UserRow({ user, last, onEdit, onDelete }) {
-  const [hov, setHov] = useState(false);
+  const loginHistory = [
+    { date:"28 Apr 10:30", status:"success", ip:"192.168.1.12", detail:"Login successful" },
+    { date:"27 Apr 11:02", status:"failed",  ip:"192.168.1.12", detail:"Wrong password" },
+    { date:"27 Apr 09:15", status:"success", ip:"192.168.1.12", detail:"Login successful" },
+    { date:"26 Apr 14:50", status:"failed",  ip:"10.0.0.5",     detail:"Too many attempts (3) — temporarily blocked" },
+  ];
+
+  if (loadingDetails) {
+    return (
+      <Modal title="User Profile" onClose={onClose} wide>
+        <div style={{ textAlign:"center", padding:"2rem", color:COLORS.text.muted }}>Loading...</div>
+      </Modal>
+    );
+  }
+
+  const d = details || user;
+
   return (
-    <div
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        display: "grid",
-        gridTemplateColumns: "55px 1fr 1.2fr 100px 130px",
-        padding: "1rem 1.4rem",
-        borderBottom: last ? "none" : "1px solid rgba(127, 119, 221, 0.06)",
-        background: hov ? COLORS.bg.hover : "transparent",
-        alignItems: "center",
-        transition: "background 0.15s",
-      }}
-    >
-      <span
-        style={{
-          fontSize: "0.82rem",
-          color: COLORS.text.subtle,
-          fontWeight: 600,
-        }}
-      >
-        #{user.id}
-      </span>
-      <span
-        style={{
-          fontSize: "0.9rem",
-          color: COLORS.text.primary,
-          fontWeight: 500,
-        }}
-      >
-        {user.name}
-      </span>
-      <span style={{ fontSize: "0.85rem", color: COLORS.text.muted }}>
-        {user.mail}
-      </span>
-      <Badge role={user.role} />
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        <ActionBtn
-          onClick={() => onEdit(user)}
-          color={COLORS.primary.light}
-          label="Edit"
-        />
-        <ActionBtn
-          onClick={() => onDelete(user)}
-          color={COLORS.accent.coral}
-          label="Delete"
-        />
+    <Modal title="User Profile" onClose={onClose} wide>
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:"1.5rem", padding:"1.2rem", background:"rgba(127,119,221,0.06)", borderRadius:12, border:"1px solid rgba(127,119,221,0.12)" }}>
+        <div style={{ width:56, height:56, borderRadius:"50%", background:`linear-gradient(135deg,${COLORS.primary.light},${COLORS.primary.dark})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0, fontFamily:"'Syne',sans-serif", fontWeight:800, color:"#fff" }}>
+          {d.name?.[0]?.toUpperCase() || "U"}
+        </div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.1rem", fontWeight:700, color:COLORS.text.primary, marginBottom:4 }}>{d.name}</div>
+          <div style={{ fontSize:"0.82rem", color:COLORS.text.muted, marginBottom:6 }}>{d.mail || "—"}</div>
+          <StatusBadge active={d.active} />
+        </div>
+        <div style={{ textAlign:"right" }}>
+          <div style={{ fontSize:"0.65rem", color:COLORS.text.subtle, textTransform:"uppercase", fontWeight:600, marginBottom:4 }}>User ID</div>
+          <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"1rem", fontWeight:700, color:COLORS.primary.light }}>#{d.id}</div>
+        </div>
       </div>
-    </div>
+
+      {/* Info Cards */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:"1.5rem" }}>
+        {[
+          { label:"Full Name", value: d.name || "—" },
+          { label:"Email",     value: d.mail || "—" },
+          { label:"Status",    value: d.active ? "Active" : "Inactive" },
+          { label:"Last Login",value: "28 Apr 2026, 10:30" },
+        ].map(info => (
+          <div key={info.label} style={{ background:"rgba(255,255,255,0.03)", borderRadius:8, padding:"0.75rem 1rem", border:"1px solid rgba(255,255,255,0.06)" }}>
+            <div style={{ fontSize:"0.65rem", color:COLORS.text.subtle, textTransform:"uppercase", fontWeight:600, letterSpacing:"0.08em", marginBottom:4 }}>{info.label}</div>
+            <div style={{ fontSize:"0.85rem", color:COLORS.text.primary, fontWeight:500 }}>{info.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Login History */}
+      <div style={{ marginBottom:"1.5rem" }}>
+        <div style={{ fontSize:"0.78rem", color:COLORS.text.muted, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:"0.75rem" }}>
+          🕐 Login History
+        </div>
+        <div style={{ background:"rgba(255,255,255,0.02)", borderRadius:10, border:"1px solid rgba(255,255,255,0.06)", overflow:"hidden" }}>
+          {loginHistory.map((log, i) => (
+            <div key={i} style={{ display:"flex", alignItems:"center", gap:12, padding:"0.65rem 1rem", borderBottom:i===loginHistory.length-1?"none":"1px solid rgba(255,255,255,0.04)" }}>
+              <span style={{ fontSize:14, color:log.status==="success"?COLORS.accent.teal:COLORS.accent.coral }}>
+                {log.status === "success" ? "✓" : "✕"}
+              </span>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:"0.8rem", color:COLORS.text.primary, fontWeight:500 }}>{log.date}</div>
+                <div style={{ fontSize:"0.72rem", color:COLORS.text.muted }}>{log.detail}</div>
+              </div>
+              <div style={{ fontSize:"0.7rem", color:COLORS.text.subtle }}>{log.ip}</div>
+              <span style={{ fontSize:"0.68rem", fontWeight:700, color:log.status==="success"?COLORS.accent.teal:COLORS.accent.coral, background:log.status==="success"?`${COLORS.accent.teal}15`:`${COLORS.accent.coral}15`, padding:"0.15rem 0.5rem", borderRadius:6 }}>
+                {log.status === "success" ? "Success" : "Failed"}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* User Reports */}
+      {userReports.length > 0 && (
+        <div style={{ marginBottom:"1.5rem" }}>
+          <div style={{ fontSize:"0.78rem", color:COLORS.text.muted, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:"0.75rem" }}>
+            📢 Reports ({userReports.length})
+          </div>
+          <div style={{ background:"rgba(255,255,255,0.02)", borderRadius:10, border:"1px solid rgba(255,255,255,0.06)", overflow:"hidden" }}>
+            {userReports.map((r, i) => (
+              <div key={i} style={{ display:"flex", alignItems:"center", gap:10, padding:"0.65rem 1rem", borderBottom:i===userReports.length-1?"none":"1px solid rgba(255,255,255,0.04)" }}>
+                <span style={{ fontSize:"0.72rem", color:COLORS.text.subtle }}>#{r.id}</span>
+                <span style={{ fontSize:"0.8rem", color:COLORS.text.primary, flex:1 }}>{r.type}</span>
+                <ReportStatusBadge status={r.status} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div style={{ display:"flex", gap:10, justifyContent:"flex-end", paddingTop:"1rem", borderTop:"1px solid rgba(255,255,255,0.06)" }}>
+        <button onClick={onClose} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.1)", color:"#7C7A99", borderRadius:8, padding:"0.65rem 1.2rem", fontSize:"0.88rem", cursor:"pointer", fontFamily:"inherit" }}>Close</button>
+        <button onClick={() => { onDelete(user); onClose(); }} style={{ background:COLORS.accent.coral, color:"#fff", border:"none", borderRadius:8, padding:"0.65rem 1.2rem", fontSize:"0.88rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+          🗑 Delete User
+        </button>
+      </div>
+    </Modal>
   );
 }
 
+// ── MAIN ────────────────────────────────────────────────
 export default function ManageUsersDashboard() {
   const navigate = useNavigate();
-  const path = window.location.pathname;
 
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState(null);
-  const [searchType, setSearchType] = useState("name");
-  const [searchVal, setSearchVal] = useState("");
+  const [users, setUsers]               = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [toast, setToast]               = useState(null);
+  const [searchVal, setSearchVal]       = useState("");
   const [searchResult, setSearchResult] = useState(null);
-  const [searching, setSearching] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
-  const [showEdit, setShowEdit] = useState(null);
-  const [showDelete, setShowDelete] = useState(null);
+  const [searching, setSearching]       = useState(false);
+  const [viewUser, setViewUser]         = useState(null);
+  const [showDelete, setShowDelete]     = useState(null);
+  const [reports, setReports]           = useState([]);
+  const [activeTab, setActiveTab]       = useState("users");
 
-  const emptyForm = {
-    name: "",
-    mail: "",
-    passWord: "",
-    role: ROLES[0],
-  };
-  const [form, setForm] = useState(emptyForm);
-
-  const showToast = (msg, type = "success") => {
+  const showToast = (msg, type="success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3200);
   };
 
+  // GET /api/admin/users → UserDTO {id, name, active}
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/admin/users`, {
-        headers: getHeaders(),
-      });
-      if (res.status === 401) {
-        navigate("/login");
-        return;
-      }
+      const res = await fetch(`${API}/api/admin/users`, { headers:getHeaders() });
+      if (res.status === 401) { navigate("/login"); return; }
+      if (!res.ok) throw new Error(`${res.status}`);
       const data = await res.json();
       setUsers(Array.isArray(data) ? data : []);
     } catch (e) {
@@ -550,629 +232,225 @@ export default function ManageUsersDashboard() {
     }
   };
 
-  useEffect(() => {
-    fetchAll();
-  }, []);
+  // Reports (mock — endpoint à créer)
+  const fetchReports = async () => {
+    try {
+      const res = await fetch(`${API}/api/admin/reports`, { headers:getHeaders() });
+      if (!res.ok) throw new Error();
+      setReports(await res.json());
+    } catch (e) {
+      setReports([
+        { id:1, userId:null, userName:"Ahmed Bennali", type:"ACCIDENT",   locationId:1, date:"2026-04-28T10:30:00", status:"PENDING"  },
+        { id:2, userId:null, userName:"Sara El Fassi", type:"SATURATION", locationId:2, date:"2026-04-28T11:15:00", status:"APPROVED" },
+        { id:3, userId:null, userName:"Youssef Alami", type:"TRAFIC",     locationId:3, date:"2026-04-27T14:00:00", status:"PENDING"  },
+      ]);
+    }
+  };
 
+  useEffect(() => { fetchAll(); fetchReports(); }, []);
+
+  // Search by name — GET /api/users/name/{name}
   const handleSearch = async () => {
     const val = searchVal.trim();
-    if (!val) {
-      setSearchResult(null);
-      return;
-    }
+    if (!val) { setSearchResult(null); return; }
     setSearching(true);
     try {
-      let url;
-      if (searchType === "name")
-        url = `${API}/api/users/name/${encodeURIComponent(val)}`;
-      if (searchType === "email")
-        url = `${API}/api/users/email/${encodeURIComponent(val)}`;
-      if (searchType === "role")
-        url = `${API}/api/users/role/${encodeURIComponent(val)}`;
-
-      const res = await fetch(url, { headers: getHeaders() });
-
-      if (!res.ok) {
-        showToast("Aucun résultat trouvé", "error");
-        setSearchResult(null);
-        return;
-      }
-
+      const res = await fetch(`${API}/api/users/name/${encodeURIComponent(val)}`, { headers:getHeaders() });
+      if (!res.ok) { showToast("No user found", "error"); setSearchResult(null); return; }
       const data = await res.json();
       setSearchResult(Array.isArray(data) ? data : [data]);
-    } catch (e) {
-      console.error(e);
-      showToast("Erreur de recherche", "error");
-    } finally {
-      setSearching(false);
-    }
+    } catch (e) { showToast("Error", "error"); }
+    finally { setSearching(false); }
   };
 
-  const clearSearch = () => {
-    setSearchVal("");
-    setSearchResult(null);
-  };
+  const clearSearch = () => { setSearchVal(""); setSearchResult(null); };
 
-  const handleCreate = async () => {
-    if (!form.name.trim() || !form.mail.trim() || !form.passWord.trim()) {
-      showToast("Remplissez tous les champs", "error");
-      return;
-    }
+  // DELETE /api/admin/user/{id}
+  const handleDelete = async (user) => {
     try {
-      const res = await fetch(`${API}/api/users/register`, {
-        method: "POST",
-        headers: getHeaders(),
-        body: JSON.stringify(form),
-      });
-      if (!res.ok) throw new Error(`${res.status}`);
-      showToast("Utilisateur créé avec succès");
-      setShowCreate(false);
-      setForm(emptyForm);
-      fetchAll();
-    } catch (e) {
-      console.error(e);
-      showToast("Erreur lors de la création", "error");
-    }
+      const res = await fetch(`${API}/api/admin/user/${user.id}`, { method:"DELETE", headers:getHeaders() });
+      if (!res.ok) throw new Error();
+      showToast("User deleted");
+      setShowDelete(null); clearSearch(); fetchAll();
+    } catch (e) { showToast("Error deleting", "error"); }
   };
 
-  const handleUpdate = async () => {
-    if (!form.name.trim() || !form.mail.trim()) {
-      showToast("Remplissez tous les champs", "error");
-      return;
-    }
+  // Approve/Reject report
+  const handleReportAction = async (reportId, action) => {
     try {
-      const res = await fetch(`${API}/api/admin/user/${showEdit.id}`, {
-        method: "PUT",
-        headers: getHeaders(),
-        body: JSON.stringify(form),
-      });
-      if (!res.ok) throw new Error(`${res.status}`);
-      showToast("Utilisateur mis à jour");
-      setShowEdit(null);
-      setForm(emptyForm);
-      fetchAll();
-    } catch (e) {
-      console.error(e);
-      showToast("Erreur lors de la mise à jour", "error");
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      const res = await fetch(`${API}/api/admin/user/${showDelete.id}`, {
-        method: "DELETE",
-        headers: getHeaders(),
-      });
-      if (!res.ok) throw new Error(`${res.status}`);
-      showToast("Utilisateur supprimé");
-      setShowDelete(null);
-      clearSearch();
-      fetchAll();
-    } catch (e) {
-      console.error(e);
-      showToast("Erreur lors de la suppression", "error");
-    }
-  };
-
-  const openEdit = (user) => {
-    setForm({
-      name: user.name,
-      mail: user.mail,
-      passWord: user.passWord || "",
-      role: user.role || ROLES[0],
-    });
-    setShowEdit(user);
+      const res = await fetch(`${API}/api/admin/reports/${reportId}/${action}`, { method:"PUT", headers:getHeaders() });
+      if (!res.ok) throw new Error();
+    } catch (e) { /* mock */ }
+    setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: action === "approve" ? "APPROVED" : "REJECTED" } : r));
+    showToast(`Report ${action === "approve" ? "approved ✓" : "rejected ✕"}`);
   };
 
   const displayed = searchResult ?? users;
-
-  const searchLabels = { name: "Name", email: "Email", role: "Role" };
-  const searchPlaceholders = {
-    name: "Enter user name...",
-    email: "Enter user email...",
-    role: "Enter role (ADMIN, USER, OPERATOR)...",
-  };
+  const pendingReports = reports.filter(r => r.status === "PENDING").length;
+  const causeIcon = { ACCIDENT:"🚨", SATURATION:"🚗", TRAFIC:"🛣️" };
 
   return (
-    <div
-      style={{
-        fontFamily: "'DM Sans', sans-serif",
-        background: COLORS.bg.main,
-        color: COLORS.text.primary,
-        minHeight: "100vh",
-      }}
-    >
+    <div style={{ fontFamily:"'DM Sans',sans-serif", background:COLORS.bg.main, color:COLORS.text.primary, minHeight:"100vh" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500;600&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        ::selection { background: rgba(127, 119, 221, 0.3); color: #fff; }
-        option { background: #110F1E; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: rgba(127, 119, 221, 0.3); border-radius: 4px; }
+        * { box-sizing:border-box; margin:0; padding:0; }
+        ::selection { background:rgba(127,119,221,0.3); color:#fff; }
+        option { background:#110F1E; }
+        ::-webkit-scrollbar { width:4px; }
+        ::-webkit-scrollbar-thumb { background:rgba(127,119,221,0.3); border-radius:4px; }
       `}</style>
 
-      <GlowOrb
-        x="10%"
-        y="20%"
-        color={COLORS.primary.dark}
-        size={500}
-        opacity={0.1}
-      />
-      <GlowOrb
-        x="90%"
-        y="70%"
-        color={COLORS.primary.light}
-        size={400}
-        opacity={0.08}
-      />
+      <GlowOrb x="10%" y="20%" color={COLORS.primary.dark} size={500} opacity={0.1} />
+      <GlowOrb x="90%" y="70%" color={COLORS.primary.light} size={400} opacity={0.08} />
 
       {toast && (
-        <div
-          style={{
-            position: "fixed",
-            top: "1.5rem",
-            right: "1.5rem",
-            zIndex: 999,
-            background:
-              toast.type === "error"
-                ? `${COLORS.accent.coral}18`
-                : `${COLORS.accent.teal}18`,
-            border: `1px solid ${
-              toast.type === "error"
-                ? COLORS.accent.coral
-                : COLORS.accent.teal
-            }55`,
-            color:
-              toast.type === "error"
-                ? "#F0997B"
-                : COLORS.accent.teal,
-            borderRadius: 10,
-            padding: "0.75rem 1.2rem",
-            fontSize: "0.85rem",
-            fontWeight: 500,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-          }}
-        >
-          {toast.type === "error" ? "⚠" : "✓"} {toast.msg}
+        <div style={{ position:"fixed", top:"1.5rem", right:"1.5rem", zIndex:999, background:toast.type==="error"?`${COLORS.accent.coral}18`:`${COLORS.accent.teal}18`, border:`1px solid ${toast.type==="error"?COLORS.accent.coral:COLORS.accent.teal}55`, color:toast.type==="error"?"#F0997B":COLORS.accent.teal, borderRadius:10, padding:"0.75rem 1.2rem", fontSize:"0.85rem", fontWeight:500, display:"flex", alignItems:"center", gap:8 }}>
+          {toast.type==="error"?"⚠":"✓"} {toast.msg}
         </div>
       )}
 
-      <Sidebar navigate={navigate} path={path} />
+      <Sidebar />
 
-      <div
-        style={{
-          marginLeft: 220,
-          padding: "2.5rem",
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            marginBottom: "2rem",
-            flexWrap: "wrap",
-            gap: "1rem",
-          }}
-        >
-          <div>
-            <h1
-              style={{
-                fontFamily: "'Syne', sans-serif",
-                fontSize: "1.7rem",
-                fontWeight: 800,
-                color: COLORS.text.primary,
-                letterSpacing: "-0.5px",
-              }}
-            >
-              Manage Users
-            </h1>
-            <p
-              style={{
-                color: COLORS.text.muted,
-                fontSize: "0.88rem",
-                marginTop: 4,
-                fontWeight: 300,
-              }}
-            >
-              Create, edit and manage user accounts
-            </p>
-          </div>
-          <PrimaryBtn
-            onClick={() => {
-              setForm(emptyForm);
-              setShowCreate(true);
-            }}
-          >
-            + New User
-          </PrimaryBtn>
+      <div style={{ marginLeft:220, padding:"2.5rem", position:"relative", zIndex:1 }}>
+
+        {/* Header */}
+        <div style={{ marginBottom:"2rem" }}>
+          <h1 style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.7rem", fontWeight:800, color:COLORS.text.primary, letterSpacing:"-0.5px" }}>Manage Users</h1>
+          <p style={{ color:COLORS.text.muted, fontSize:"0.88rem", marginTop:4, fontWeight:300 }}>User accounts and report validation</p>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-            gap: 14,
-            marginBottom: "2rem",
-          }}
-        >
+        {/* Stat Cards */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,minmax(0,1fr))", gap:14, marginBottom:"2rem" }}>
           {[
-            {
-              label: "Total Users",
-              value: users.length,
-              color: COLORS.primary.light,
-              icon: "👥",
-            },
-            {
-              label: "Admins",
-              value: users.filter((u) => u.role === "ADMIN").length,
-              color: COLORS.accent.coral,
-              icon: "🔐",
-            },
-            {
-              label: "Operators",
-              value: users.filter((u) => u.role === "OPERATOR").length,
-              color: COLORS.accent.amber,
-              icon: "🚗",
-            },
-            {
-              label: "Users",
-              value: users.filter((u) => u.role === "USER").length,
-              color: COLORS.accent.teal,
-              icon: "👤",
-            },
-          ].map((stat) => (
-            <StatCard
-              key={stat.label}
-              label={stat.label}
-              value={stat.value}
-              color={stat.color}
-              icon={stat.icon}
-            />
+            { label:"Total Users",     value:users.length,                              color:COLORS.primary.light, icon:"👥" },
+            { label:"Active",          value:users.filter(u=>u.active).length,          color:COLORS.accent.teal,   icon:"✅" },
+            { label:"Inactive",        value:users.filter(u=>!u.active).length,         color:COLORS.accent.coral,  icon:"🔒" },
+            { label:"Pending Reports", value:pendingReports,                             color:COLORS.accent.amber,  icon:"📋" },
+          ].map(s => <StatCard key={s.label} label={s.label} value={s.value} color={s.color} icon={s.icon} />)}
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display:"flex", background:COLORS.bg.hover, borderRadius:10, padding:4, gap:3, marginBottom:"1.5rem", width:"fit-content" }}>
+          {[
+            { key:"users",   label:"👥 Users" },
+            { key:"reports", label:`📋 Reports${pendingReports>0?` (${pendingReports})`:""}` },
+          ].map(tab => (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
+              background:activeTab===tab.key?`linear-gradient(135deg,${COLORS.primary.light},${COLORS.primary.dark})`:"transparent",
+              color:activeTab===tab.key?COLORS.text.primary:COLORS.text.muted,
+              border:"none", borderRadius:7, padding:"0.5rem 1.2rem", fontSize:"0.85rem",
+              fontWeight:600, cursor:"pointer", fontFamily:"inherit",
+            }}>{tab.label}</button>
           ))}
         </div>
 
-        <div
-          style={{
-            background: COLORS.bg.card,
-            border: "1px solid rgba(127, 119, 221, 0.1)",
-            borderRadius: 14,
-            padding: "1.2rem 1.4rem",
-            marginBottom: "1.5rem",
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              background: COLORS.bg.hover,
-              borderRadius: 8,
-              padding: 3,
-              gap: 2,
-            }}
-          >
-            {["name", "email", "role"].map((type) => (
-              <button
-                key={type}
-                onClick={() => {
-                  setSearchType(type);
-                  clearSearch();
-                }}
-                style={{
-                  background:
-                    searchType === type
-                      ? `linear-gradient(135deg, ${COLORS.primary.light}, ${COLORS.primary.dark})`
-                      : "transparent",
-                  color:
-                    searchType === type
-                      ? COLORS.text.primary
-                      : COLORS.text.muted,
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "0.38rem 0.9rem",
-                  fontSize: "0.82rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  transition: "all 0.18s",
-                }}
-              >
-                By {searchLabels[type]}
+        {/* ── TAB USERS ── */}
+        {activeTab === "users" && (
+          <>
+            {/* Search by name */}
+            <div style={{ background:COLORS.bg.card, border:"1px solid rgba(127,119,221,0.1)", borderRadius:14, padding:"1rem 1.4rem", marginBottom:"1.2rem", display:"flex", alignItems:"center", gap:12 }}>
+              <span style={{ fontSize:"0.78rem", color:COLORS.text.muted, fontWeight:600, whiteSpace:"nowrap" }}>🔍 Search by name</span>
+              <input value={searchVal} onChange={e=>setSearchVal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSearch()}
+                placeholder="Enter user name..." style={{ flex:1, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:"0.6rem 1rem", fontSize:"0.88rem", color:COLORS.text.primary, outline:"none", fontFamily:"inherit" }} />
+              <button onClick={handleSearch} disabled={searching||!searchVal.trim()} style={{ background:`linear-gradient(135deg,${COLORS.primary.light},${COLORS.primary.dark})`, color:"#fff", border:"none", borderRadius:8, padding:"0.6rem 1.2rem", fontSize:"0.85rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                {searching ? "..." : "Search"}
               </button>
-            ))}
-          </div>
+              {searchResult && <button onClick={clearSearch} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.1)", color:"#7C7A99", borderRadius:8, padding:"0.6rem 1rem", fontSize:"0.82rem", cursor:"pointer", fontFamily:"inherit" }}>Clear ✕</button>}
+            </div>
 
-          <input
-            value={searchVal}
-            onChange={(e) => setSearchVal(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            placeholder={searchPlaceholders[searchType]}
-            style={{
-              flex: 1,
-              minWidth: 180,
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 8,
-              padding: "0.65rem 1rem",
-              fontSize: "0.88rem",
-              color: COLORS.text.primary,
-              outline: "none",
-              fontFamily: "inherit",
-            }}
-          />
+            {searchResult && <div style={{ marginBottom:"0.75rem", fontSize:"0.8rem", color:COLORS.text.muted }}>{searchResult.length} result{searchResult.length!==1?"s":""} found</div>}
 
-          <PrimaryBtn
-            onClick={handleSearch}
-            disabled={searching || !searchVal.trim()}
-          >
-            {searching ? "Searching..." : "Search"}
-          </PrimaryBtn>
+            {/* Users Table */}
+            <div style={{ background:COLORS.bg.card, border:"1px solid rgba(127,119,221,0.1)", borderRadius:14, overflow:"hidden" }}>
+              {/* Table header — basé sur UserDTO: id, name, active */}
+              <div style={{ display:"grid", gridTemplateColumns:"60px 1fr 100px 160px", padding:"0.8rem 1.4rem", borderBottom:"1px solid rgba(127,119,221,0.06)", fontSize:"0.68rem", color:COLORS.text.subtle, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:600 }}>
+                <span>ID</span>
+                <span>Name</span>
+                <span>Status</span>
+                <span style={{ textAlign:"right" }}>Actions</span>
+              </div>
 
-          {searchResult && (
-            <button
-              onClick={clearSearch}
-              style={{
-                background: "transparent",
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: "#7C7A99",
-                borderRadius: 8,
-                padding: "0.65rem 1rem",
-                fontSize: "0.82rem",
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              Clear ✕
-            </button>
-          )}
-        </div>
-
-        {searchResult && (
-          <div
-            style={{
-              marginBottom: "0.75rem",
-              fontSize: "0.8rem",
-              color: COLORS.text.muted,
-            }}
-          >
-            {searchResult.length} result{searchResult.length !== 1 ? "s" : ""}{" "}
-            found
-          </div>
+              {loading ? (
+                <div style={{ padding:"3rem", textAlign:"center", color:COLORS.text.muted }}>Loading...</div>
+              ) : displayed.length === 0 ? (
+                <div style={{ padding:"3rem", textAlign:"center", color:COLORS.text.muted }}>No users found</div>
+              ) : (
+                displayed.map((u, i) => (
+                  <div key={u.id??i} style={{ display:"grid", gridTemplateColumns:"60px 1fr 100px 160px", padding:"0.9rem 1.4rem", borderBottom:i===displayed.length-1?"none":"1px solid rgba(127,119,221,0.06)", alignItems:"center" }}>
+                    <span style={{ fontSize:"0.8rem", color:COLORS.text.subtle, fontWeight:600 }}>#{u.id}</span>
+                    <span style={{ fontSize:"0.9rem", color:COLORS.text.primary, fontWeight:500 }}>{u.name}</span>
+                    <StatusBadge active={u.active} />
+                    <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
+                      {/* View → GET /api/admin/userDetails/{id} */}
+                      <button onClick={() => setViewUser(u)} style={{ background:`${COLORS.primary.light}18`, border:`1px solid ${COLORS.primary.light}44`, color:COLORS.primary.light, borderRadius:6, padding:"0.28rem 0.75rem", fontSize:"0.75rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                        View
+                      </button>
+                      {/* Delete → DELETE /api/admin/user/{id} */}
+                      <button onClick={() => setShowDelete(u)} style={{ background:`${COLORS.accent.coral}18`, border:`1px solid ${COLORS.accent.coral}44`, color:"#F0997B", borderRadius:6, padding:"0.28rem 0.75rem", fontSize:"0.75rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
         )}
 
-        <div
-          style={{
-            background: COLORS.bg.card,
-            border: "1px solid rgba(127, 119, 221, 0.1)",
-            borderRadius: 14,
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "55px 1fr 1.2fr 100px 130px",
-              padding: "0.85rem 1.4rem",
-              borderBottom: "1px solid rgba(127, 119, 221, 0.06)",
-              fontSize: "0.72rem",
-              color: COLORS.text.subtle,
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              fontWeight: 600,
-            }}
-          >
-            <span>ID</span>
-            <span>Name</span>
-            <span>Email</span>
-            <span>Role</span>
-            <span style={{ textAlign: "right" }}>Actions</span>
+        {/* ── TAB REPORTS ── */}
+        {activeTab === "reports" && (
+          <div style={{ background:COLORS.bg.card, border:"1px solid rgba(127,119,221,0.1)", borderRadius:14, overflow:"hidden" }}>
+            <div style={{ padding:"0.85rem 1.4rem", borderBottom:"1px solid rgba(127,119,221,0.06)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <span style={{ fontFamily:"'Syne',sans-serif", fontSize:"0.95rem", fontWeight:700, color:COLORS.text.primary }}>Incident Reports ({reports.length})</span>
+              <span style={{ fontSize:"0.75rem", color:COLORS.text.subtle }}>Approve or reject user-submitted reports</span>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"55px 1fr 110px 120px 110px 160px", padding:"0.7rem 1.4rem", borderBottom:"1px solid rgba(127,119,221,0.06)", fontSize:"0.65rem", color:COLORS.text.subtle, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:600 }}>
+              <span>ID</span><span>User</span><span>Type</span><span>Date</span><span>Status</span><span style={{ textAlign:"right" }}>Action</span>
+            </div>
+            {reports.length === 0 ? (
+              <div style={{ padding:"3rem", textAlign:"center", color:COLORS.text.muted }}>No reports yet</div>
+            ) : (
+              reports.map((r, i) => (
+                <div key={r.id} style={{ display:"grid", gridTemplateColumns:"55px 1fr 110px 120px 110px 160px", padding:"0.85rem 1.4rem", borderBottom:i===reports.length-1?"none":"1px solid rgba(127,119,221,0.06)", alignItems:"center" }}>
+                  <span style={{ fontSize:"0.78rem", color:COLORS.text.subtle, fontWeight:600 }}>#{r.id}</span>
+                  <div>
+                    <div style={{ fontSize:"0.85rem", color:COLORS.text.primary, fontWeight:500 }}>{r.userName || `User #${r.userId}`}</div>
+                    <div style={{ fontSize:"0.7rem", color:COLORS.text.subtle }}>Zone #{r.locationId}</div>
+                  </div>
+                  <span style={{ fontSize:"0.8rem" }}>{causeIcon[r.type]||"📋"} {r.type}</span>
+                  <span style={{ fontSize:"0.72rem", color:COLORS.text.muted }}>{r.date?new Date(r.date).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"—"}</span>
+                  <ReportStatusBadge status={r.status} />
+                  <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
+                    {r.status === "PENDING" ? (
+                      <>
+                        <button onClick={() => handleReportAction(r.id,"approve")} style={{ background:`${COLORS.accent.teal}18`, border:`1px solid ${COLORS.accent.teal}44`, color:COLORS.accent.teal, borderRadius:6, padding:"0.28rem 0.7rem", fontSize:"0.72rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>✓ Approve</button>
+                        <button onClick={() => handleReportAction(r.id,"reject")}  style={{ background:`${COLORS.accent.coral}18`, border:`1px solid ${COLORS.accent.coral}44`, color:"#F0997B", borderRadius:6, padding:"0.28rem 0.7rem", fontSize:"0.72rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>✕ Reject</button>
+                      </>
+                    ) : (
+                      <span style={{ fontSize:"0.72rem", color:COLORS.text.subtle, fontStyle:"italic" }}>Processed</span>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-
-          {loading ? (
-            <div
-              style={{
-                padding: "3rem",
-                textAlign: "center",
-                color: COLORS.text.muted,
-                fontSize: "0.88rem",
-              }}
-            >
-              Loading...
-            </div>
-          ) : displayed.length === 0 ? (
-            <div
-              style={{
-                padding: "3rem",
-                textAlign: "center",
-                color: COLORS.text.muted,
-                fontSize: "0.88rem",
-              }}
-            >
-              No users found
-            </div>
-          ) : (
-            displayed.map((u, i) => (
-              <UserRow
-                key={u.id ?? i}
-                user={u}
-                last={i === displayed.length - 1}
-                onEdit={openEdit}
-                onDelete={setShowDelete}
-              />
-            ))
-          )}
-        </div>
+        )}
       </div>
 
-      {showCreate && (
-        <Modal title="New User" onClose={() => setShowCreate(false)}>
-          <FormField
-            label="Name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          <FormField
-            label="Email"
-            value={form.mail}
-            onChange={(e) => setForm({ ...form, mail: e.target.value })}
-            type="email"
-          />
-          <FormField
-            label="Password"
-            value={form.passWord}
-            onChange={(e) => setForm({ ...form, passWord: e.target.value })}
-            type="password"
-          />
-          <FormField
-            label="Role"
-            value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value })}
-            options={ROLES}
-          />
-
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              justifyContent: "flex-end",
-              marginTop: 8,
-            }}
-          >
-            <button
-              onClick={() => setShowCreate(false)}
-              style={{
-                background: "transparent",
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: "#7C7A99",
-                borderRadius: 8,
-                padding: "0.68rem 1.2rem",
-                fontSize: "0.88rem",
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              Cancel
-            </button>
-            <PrimaryBtn
-              onClick={handleCreate}
-              disabled={!form.name.trim() || !form.mail.trim() || !form.passWord.trim()}
-            >
-              Create
-            </PrimaryBtn>
-          </div>
-        </Modal>
+      {/* Profile Modal */}
+      {viewUser && (
+        <UserProfileModal user={viewUser} onClose={() => setViewUser(null)} onDelete={handleDelete} reports={reports} />
       )}
 
-      {showEdit && (
-        <Modal
-          title={`Edit — ${showEdit.name}`}
-          onClose={() => setShowEdit(null)}
-        >
-          <FormField
-            label="Name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          <FormField
-            label="Email"
-            value={form.mail}
-            onChange={(e) => setForm({ ...form, mail: e.target.value })}
-            type="email"
-          />
-          <FormField
-            label="Password (leave blank to keep current)"
-            value={form.passWord}
-            onChange={(e) => setForm({ ...form, passWord: e.target.value })}
-            type="password"
-          />
-          <FormField
-            label="Role"
-            value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value })}
-            options={ROLES}
-          />
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              justifyContent: "flex-end",
-              marginTop: 8,
-            }}
-          >
-            <button
-              onClick={() => setShowEdit(null)}
-              style={{
-                background: "transparent",
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: "#7C7A99",
-                borderRadius: 8,
-                padding: "0.68rem 1.2rem",
-                fontSize: "0.88rem",
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              Cancel
-            </button>
-            <PrimaryBtn onClick={handleUpdate} disabled={!form.name.trim() || !form.mail.trim()}>
-              Save Changes
-            </PrimaryBtn>
-          </div>
-        </Modal>
-      )}
-
+      {/* Delete Confirm */}
       {showDelete && (
-        <Modal
-          title="Delete User"
-          onClose={() => setShowDelete(null)}
-        >
-          <p
-            style={{
-              color: "#9CA3AF",
-              fontSize: "0.9rem",
-              lineHeight: 1.7,
-              marginBottom: "1.5rem",
-            }}
-          >
-            Are you sure you want to delete user{" "}
-            <span style={{ color: COLORS.text.primary, fontWeight: 600 }}>
-              {showDelete.name}
-            </span>
-            ? This action cannot be undone.
+        <Modal title="Delete User" onClose={() => setShowDelete(null)}>
+          <p style={{ color:"#9CA3AF", fontSize:"0.9rem", lineHeight:1.7, marginBottom:"1.5rem" }}>
+            Are you sure you want to delete <span style={{ color:COLORS.text.primary, fontWeight:600 }}>{showDelete.name}</span>?
           </p>
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              justifyContent: "flex-end",
-            }}
-          >
-            <button
-              onClick={() => setShowDelete(null)}
-              style={{
-                background: "transparent",
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: "#7C7A99",
-                borderRadius: 8,
-                padding: "0.68rem 1.2rem",
-                fontSize: "0.88rem",
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              Cancel
-            </button>
-            <PrimaryBtn danger onClick={handleDelete}>
-              Delete
-            </PrimaryBtn>
+          <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+            <button onClick={() => setShowDelete(null)} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.1)", color:"#7C7A99", borderRadius:8, padding:"0.68rem 1.2rem", fontSize:"0.88rem", cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
+            <button onClick={() => handleDelete(showDelete)} style={{ background:COLORS.accent.coral, color:"#fff", border:"none", borderRadius:8, padding:"0.68rem 1.4rem", fontSize:"0.88rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>Delete</button>
           </div>
         </Modal>
       )}
