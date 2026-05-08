@@ -8,7 +8,8 @@ import TrafficDataDashboard from "./pages/TrafficDataDashboard";
 import CongestionDashboard  from "./pages/CongestionDashboard";
 import UserPage             from "./pages/UserPage";
 import ManageUsersDashboard from './pages/ManageUsersDashboard';
-
+import StatisticsDashboard from "./pages/StatisticsDashboard";
+import ZonesDashboard from "./pages/ZonesDashboard";
 
 import SignalsDashboard from "./pages/SignalsDashboard"; 
 
@@ -64,6 +65,14 @@ function App() {
 
         <Route path="/admin/users" element={<ManageUsersDashboard />} /> 
         <Route path="/admin/signals" element={<SignalsDashboard />} />
+
+        <Route path="/admin/statistics" element={<PrivateRoute roleRequired="ROLE_ADMIN"><StatisticsDashboard /></PrivateRoute>} />
+      
+<Route path="/admin/zones" element={
+  <PrivateRoute roleRequired="ROLE_ADMIN">
+    <ZonesDashboard />
+  </PrivateRoute>
+} />
       </Routes>
     </BrowserRouter>
   );

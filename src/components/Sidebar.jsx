@@ -11,6 +11,7 @@ const COLORS = {
 const NAV_ITEMS = [
   { label: "Dashboard",    icon: "▣",  path: "/admin" },
   { label: "Sensors",      icon: "◎",  path: "/admin/locations" },
+  { label: "Zones",        icon: "📍", path: "/admin/zones" },
   { label: "Traffic Data", icon: "▦",  path: "/admin/traffic" },
   { label: "Congestion",   icon: "◈",  path: "/admin/congestion" },
   { label: "Manage Users", icon: "👤", path: "/admin/users" },

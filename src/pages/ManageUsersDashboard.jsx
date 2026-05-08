@@ -34,10 +34,12 @@ function StatCard({ label, value, color, icon }) {
 }
 
 function StatusBadge({ active }) {
+  // active peut être true/false/null/undefined
+  const isActive = active === true || active === "true" || active === "ACTIF";
   return (
-    <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:active?`${COLORS.accent.teal}18`:`${COLORS.accent.coral}18`, border:`1px solid ${active?COLORS.accent.teal:COLORS.accent.coral}44`, color:active?COLORS.accent.teal:"#F0997B", fontSize:"0.7rem", fontWeight:700, padding:"0.2rem 0.65rem", borderRadius:100 }}>
-      <span style={{ width:4, height:4, borderRadius:"50%", background:active?COLORS.accent.teal:COLORS.accent.coral, display:"inline-block" }} />
-      {active ? "Active" : "Inactive"}
+    <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:isActive?`${COLORS.accent.teal}18`:`${COLORS.accent.coral}18`, border:`1px solid ${isActive?COLORS.accent.teal:COLORS.accent.coral}44`, color:isActive?COLORS.accent.teal:"#F0997B", fontSize:"0.7rem", fontWeight:700, padding:"0.2rem 0.65rem", borderRadius:100 }}>
+      <span style={{ width:4, height:4, borderRadius:"50%", background:isActive?COLORS.accent.teal:COLORS.accent.coral, display:"inline-block" }} />
+      {isActive ? "Active" : "Inactive"}
     </span>
   );
 }
@@ -71,35 +73,48 @@ function Modal({ title, onClose, children, wide }) {
 }
 
 // ── USER PROFILE MODAL ──────────────────────────────────
-// Utilise GET /api/admin/userDetails/{id}
+// GET /api/admin/userDetails/{id} → {id, name, mail, active}
+// GET /api/admin/history/user/{email} → login history
 function UserProfileModal({ user, onClose, onDelete, reports }) {
-  const [details, setDetails] = useState(null);
-  const [loadingDetails, setLoadingDetails] = useState(true);
+  const [details, setDetails]         = useState(null);
+  const [loginHistory, setLoginHistory] = useState([]);
+  const [loading, setLoading]         = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
+      setLoading(true);
       try {
+        // 1) GET full user details (pour avoir le mail)
         const res = await fetch(`${API}/api/admin/userDetails/${user.id}`, { headers: getHeaders() });
         if (res.status === 401) { navigate("/login"); return; }
-        if (!res.ok) { setDetails(user); return; }
-        setDetails(await res.json());
-      } catch (e) { setDetails(user); }
-      finally { setLoadingDetails(false); }
+        const d = res.ok ? await res.json() : user;
+        setDetails(d);
+
+        // 2) GET login history par email
+        if (d.mail) {
+          const histRes = await fetch(
+            `${API}/api/admin/history/user/${encodeURIComponent(d.mail)}`,
+            { headers: getHeaders() }
+          );
+          if (histRes.ok) {
+            const hist = await histRes.json();
+            setLoginHistory(Array.isArray(hist) ? hist : []);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+        setDetails(user);
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, [user.id]);
 
   const userReports = reports.filter(r => r.userId === user.id);
 
-  const loginHistory = [
-    { date:"28 Apr 10:30", status:"success", ip:"192.168.1.12", detail:"Login successful" },
-    { date:"27 Apr 11:02", status:"failed",  ip:"192.168.1.12", detail:"Wrong password" },
-    { date:"27 Apr 09:15", status:"success", ip:"192.168.1.12", detail:"Login successful" },
-    { date:"26 Apr 14:50", status:"failed",  ip:"10.0.0.5",     detail:"Too many attempts (3) — temporarily blocked" },
-  ];
-
-  if (loadingDetails) {
+  if (loading) {
     return (
       <Modal title="User Profile" onClose={onClose} wide>
         <div style={{ textAlign:"center", padding:"2rem", color:COLORS.text.muted }}>Loading...</div>
@@ -148,21 +163,34 @@ function UserProfileModal({ user, onClose, onDelete, reports }) {
           🕐 Login History
         </div>
         <div style={{ background:"rgba(255,255,255,0.02)", borderRadius:10, border:"1px solid rgba(255,255,255,0.06)", overflow:"hidden" }}>
-          {loginHistory.map((log, i) => (
-            <div key={i} style={{ display:"flex", alignItems:"center", gap:12, padding:"0.65rem 1rem", borderBottom:i===loginHistory.length-1?"none":"1px solid rgba(255,255,255,0.04)" }}>
-              <span style={{ fontSize:14, color:log.status==="success"?COLORS.accent.teal:COLORS.accent.coral }}>
-                {log.status === "success" ? "✓" : "✕"}
-              </span>
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:"0.8rem", color:COLORS.text.primary, fontWeight:500 }}>{log.date}</div>
-                <div style={{ fontSize:"0.72rem", color:COLORS.text.muted }}>{log.detail}</div>
-              </div>
-              <div style={{ fontSize:"0.7rem", color:COLORS.text.subtle }}>{log.ip}</div>
-              <span style={{ fontSize:"0.68rem", fontWeight:700, color:log.status==="success"?COLORS.accent.teal:COLORS.accent.coral, background:log.status==="success"?`${COLORS.accent.teal}15`:`${COLORS.accent.coral}15`, padding:"0.15rem 0.5rem", borderRadius:6 }}>
-                {log.status === "success" ? "Success" : "Failed"}
-              </span>
-            </div>
-          ))}
+          {loginHistory.length === 0 ? (
+            <div style={{ padding:"1.2rem", textAlign:"center", color:COLORS.text.subtle, fontSize:"0.82rem" }}>No login history found</div>
+          ) : (
+            loginHistory.slice(0, 5).map((log, i) => {
+              // LoginHistory entity: timestamp, success (bool), ipAddress, email
+              const isSuccess = log.success === true || log.status === "SUCCESS";
+              const date = log.timestamp
+                ? new Date(log.timestamp).toLocaleString("fr-FR", { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" })
+                : log.date || "—";
+              return (
+                <div key={i} style={{ display:"flex", alignItems:"center", gap:12, padding:"0.65rem 1rem", borderBottom:i===Math.min(loginHistory.length,5)-1?"none":"1px solid rgba(255,255,255,0.04)" }}>
+                  <span style={{ fontSize:14, color:isSuccess?COLORS.accent.teal:COLORS.accent.coral }}>
+                    {isSuccess ? "✓" : "✕"}
+                  </span>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:"0.8rem", color:COLORS.text.primary, fontWeight:500 }}>{date}</div>
+                    <div style={{ fontSize:"0.72rem", color:COLORS.text.muted }}>
+                      {isSuccess ? "Login successful" : log.failureReason || "Wrong password / Account blocked"}
+                    </div>
+                  </div>
+                  <div style={{ fontSize:"0.7rem", color:COLORS.text.subtle }}>{log.ipAddress || log.ip || "—"}</div>
+                  <span style={{ fontSize:"0.68rem", fontWeight:700, color:isSuccess?COLORS.accent.teal:COLORS.accent.coral, background:isSuccess?`${COLORS.accent.teal}15`:`${COLORS.accent.coral}15`, padding:"0.15rem 0.5rem", borderRadius:6 }}>
+                    {isSuccess ? "Success" : "Failed"}
+                  </span>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -219,14 +247,23 @@ export default function ManageUsersDashboard() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/admin/users`, { headers:getHeaders() });
+      const token = localStorage.getItem("token");
+      console.log("🔑 Token:", token ? "present" : "MISSING");
+      console.log("📡 Calling:", `${API}/api/admin/users`);
+
+      const res = await fetch(`${API}/api/admin/users`, { headers: getHeaders() });
+      console.log("📊 Status:", res.status);
+
       if (res.status === 401) { navigate("/login"); return; }
-      if (!res.ok) throw new Error(`${res.status}`);
+      if (res.status === 403) { showToast("Access denied — Admin only", "error"); setLoading(false); return; }
+      if (!res.ok) { showToast(`Error ${res.status}`, "error"); setLoading(false); return; }
+
       const data = await res.json();
+      console.log("✅ Users received:", data);
       setUsers(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.error(e);
-      showToast("Erreur de chargement", "error");
+      console.error("❌ fetchAll error:", e);
+      showToast("Erreur de chargement — voir console", "error");
     } finally {
       setLoading(false);
     }
@@ -322,10 +359,10 @@ export default function ManageUsersDashboard() {
         {/* Stat Cards */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(4,minmax(0,1fr))", gap:14, marginBottom:"2rem" }}>
           {[
-            { label:"Total Users",     value:users.length,                              color:COLORS.primary.light, icon:"👥" },
-            { label:"Active",          value:users.filter(u=>u.active).length,          color:COLORS.accent.teal,   icon:"✅" },
-            { label:"Inactive",        value:users.filter(u=>!u.active).length,         color:COLORS.accent.coral,  icon:"🔒" },
-            { label:"Pending Reports", value:pendingReports,                             color:COLORS.accent.amber,  icon:"📋" },
+            { label:"Total Users",     value:users.length,                                           color:COLORS.primary.light, icon:"👥" },
+            { label:"Active",          value:users.filter(u=>u.active===true).length,                color:COLORS.accent.teal,   icon:"✅" },
+            { label:"Inactive",        value:users.filter(u=>u.active===false).length,               color:COLORS.accent.coral,  icon:"🔒" },
+            { label:"Pending Reports", value:pendingReports,                                          color:COLORS.accent.amber,  icon:"📋" },
           ].map(s => <StatCard key={s.label} label={s.label} value={s.value} color={s.color} icon={s.icon} />)}
         </div>
 
