@@ -456,7 +456,7 @@ export default function TrafficDataDashboard() {
         {/* Table */}
         <div style={{ background: COLORS.bg.card, border: "1px solid rgba(127,119,221,0.1)", borderRadius: 14, overflow: "hidden" }}>
           <div style={{ display: "grid", gridTemplateColumns: "50px 90px 80px 75px 60px 60px 60px 110px 110px", padding: "0.75rem 1.3rem", borderBottom: "1px solid rgba(127,119,221,0.08)", fontSize: "0.65rem", color: COLORS.text.subtle, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700 }}>
-            <span>ID</span><span>Speed</span><span>Volume</span><span>Cars</span><span>Trucks</span><span>Bikes</span><span>Loc.</span><span>Date</span><span style={{ textAlign: "right" }}>Status</span>
+            <span>ID</span><span>Speed</span><span>Volume</span><span>Cars</span><span>Trucks</span><span>Bikes</span><span>sensor</span><span>Date</span><span style={{ textAlign: "right" }}>Status</span>
           </div>
 
           {loading ? (

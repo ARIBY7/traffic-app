@@ -113,10 +113,11 @@ function UserProfileModal({ user, onClose, reports, onStatusChange, onDelete }) 
     const newStatus = !d.active;
     setToggling(true);
     try {
-      const res = await fetch(
-        `${API}/api/admin/changeStatus/${d.id}?status=${newStatus}`,
-        { method: "PUT", headers: getHeaders() }
-      );
+      // ✅ Endpoints corrects du backend
+      const endpoint = newStatus
+        ? `${API}/api/admin/users/unblock/${d.id}`
+        : `${API}/api/admin/users/block/${d.id}`;
+      const res = await fetch(endpoint, { method: "PUT", headers: getHeaders() });
       if (!res.ok) throw new Error();
       setDetails(prev => ({ ...prev, active: newStatus }));
       onStatusChange(d.id, newStatus);
@@ -323,15 +324,31 @@ export default function ManageUsersDashboard() {
 
   const fetchReports = async () => {
     try {
-      const res = await fetch(`${API}/api/admin/reports`, { headers:getHeaders() });
-      if (!res.ok) throw new Error();
-      setReports(await res.json());
+      const res = await fetch(`${API}/api/admin/reports/pending`, { headers:getHeaders() });
+      
+      // Charger les reports déjà traités depuis localStorage
+      const stored = JSON.parse(localStorage.getItem("processedReports") || "[]");
+      
+      if (res.status === 204 || !res.ok) {
+        setReports(stored);
+        return;
+      }
+      const pending = await res.json();
+      const pendingList = Array.isArray(pending) ? pending : [];
+      
+      // ✅ Fusionner : pending du backend + traités sauvegardés (sans doublons)
+      const pendingIds = new Set(pendingList.map(r => r.id));
+      const storedNotInPending = stored.filter(r => !pendingIds.has(r.id));
+      const merged = [...pendingList, ...storedNotInPending];
+      merged.sort((a, b) => {
+        const da = new Date(b.heureDate || b.date || 0);
+        const db = new Date(a.heureDate || a.date || 0);
+        return da - db;
+      });
+      setReports(merged);
     } catch (e) {
-      setReports([
-        { id:1, userId:null, userName:"Ahmed Bennali", type:"ACCIDENT",   locationId:1, date:"2026-04-28T10:30:00", status:"PENDING"  },
-        { id:2, userId:null, userName:"Sara El Fassi", type:"SATURATION", locationId:2, date:"2026-04-28T11:15:00", status:"APPROVED" },
-        { id:3, userId:null, userName:"Youssef Alami", type:"TRAFIC",     locationId:3, date:"2026-04-27T14:00:00", status:"PENDING"  },
-      ]);
+      const stored = JSON.parse(localStorage.getItem("processedReports") || "[]");
+      setReports(stored);
     }
   };
 
@@ -346,11 +363,12 @@ export default function ManageUsersDashboard() {
   const handleToggleFromTable = async (user) => {
     const newStatus = !user.active;
     try {
-      const res = await fetch(
-        `${API}/api/admin/changeStatus/${user.id}?status=${newStatus}`,
-        { method: "PUT", headers: getHeaders() }
-      );
-      if (!res.ok) throw new Error();
+      // ✅ Endpoints corrects du backend
+      const endpoint = newStatus
+        ? `${API}/api/admin/users/unblock/${user.id}`
+        : `${API}/api/admin/users/block/${user.id}`;
+      const res = await fetch(endpoint, { method: "PUT", headers: getHeaders() });
+      if (!res.ok) throw new Error(`Status ${res.status}`);
       handleStatusChange(user.id, newStatus);
     } catch (e) {
       showToast("Erreur lors du changement de statut", "error");
@@ -386,10 +404,23 @@ export default function ManageUsersDashboard() {
 
   const handleReportAction = async (reportId, action) => {
     try {
-      await fetch(`${API}/api/admin/reports/${reportId}/${action}`, { method:"PUT", headers:getHeaders() });
-    } catch (e) { /* mock */ }
-    setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: action === "approve" ? "APPROVED" : "REJECTED" } : r));
-    showToast(`Report ${action === "approve" ? "approved ✓" : "rejected ✕"}`);
+      const endpoint = action === "approve"
+        ? `${API}/api/admin/reports/approve/${reportId}`
+        : `${API}/api/admin/reports/reject/${reportId}`;
+      await fetch(endpoint, { method:"PUT", headers:getHeaders() });
+    } catch (e) { /* ignore */ }
+
+    const newStatus = action === "approve" ? "APPROVED" : "REJECTED";
+
+    // ✅ Mise à jour locale
+    setReports(prev => {
+      const updated = prev.map(r => r.id === reportId ? { ...r, status: newStatus } : r);
+      // Sauvegarder les reports traités dans localStorage pour persister après reconnexion
+      const processed = updated.filter(r => r.status !== "PENDING");
+      localStorage.setItem("processedReports", JSON.stringify(processed));
+      return updated;
+    });
+    showToast(action === "approve" ? "Report approved ✓" : "Report rejected ✕");
   };
 
   // ✅ Filtre status appliqué sur la liste
@@ -482,12 +513,12 @@ export default function ManageUsersDashboard() {
 
             {/* ✅ Table — ID | Name | Email | Status | Actions (View + Disable/Enable) */}
             <div style={{ background:COLORS.bg.card, border:"1px solid rgba(127,119,221,0.1)", borderRadius:14, overflow:"hidden" }}>
-              <div style={{ display:"grid", gridTemplateColumns:"55px 1fr 1fr 90px 170px", padding:"0.8rem 1.4rem", borderBottom:"1px solid rgba(127,119,221,0.06)", fontSize:"0.68rem", color:COLORS.text.subtle, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:600 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"55px 1fr 1fr 140px 80px", padding:"0.8rem 1.4rem", borderBottom:"1px solid rgba(127,119,221,0.06)", fontSize:"0.68rem", color:COLORS.text.subtle, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:600 }}>
                 <span>ID</span>
                 <span>Name</span>
                 <span>Email</span>
                 <span>Status</span>
-                <span style={{ textAlign:"right" }}>Actions</span>
+                <span style={{ textAlign:"right" }}>View</span>
               </div>
 
               {loading ? (
@@ -496,7 +527,7 @@ export default function ManageUsersDashboard() {
                 <div style={{ padding:"3rem", textAlign:"center", color:COLORS.text.muted }}>No users found</div>
               ) : (
                 displayed.map((u, i) => (
-                  <div key={u.id??i} style={{ display:"grid", gridTemplateColumns:"55px 1fr 1fr 90px 170px", padding:"0.9rem 1.4rem", borderBottom:i===displayed.length-1?"none":"1px solid rgba(127,119,221,0.06)", alignItems:"center" }}>
+                  <div key={u.id??i} style={{ display:"grid", gridTemplateColumns:"55px 1fr 1fr 140px 80px", padding:"0.9rem 1.4rem", borderBottom:i===displayed.length-1?"none":"1px solid rgba(127,119,221,0.06)", alignItems:"center" }}>
                     <span style={{ fontSize:"0.8rem", color:COLORS.text.subtle, fontWeight:600 }}>#{u.id}</span>
 
                     {/* Name + username */}
@@ -505,27 +536,33 @@ export default function ManageUsersDashboard() {
                       {u.username && <div style={{ fontSize:"0.7rem", color:COLORS.primary.light, marginTop:1 }}>@{u.username}</div>}
                     </div>
 
-                    {/* ✅ Email */}
+                    {/* Email */}
                     <span style={{ fontSize:"0.8rem", color:COLORS.text.muted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                       {u.mail || "—"}
                     </span>
 
-                    <StatusBadge active={u.active} />
+                    {/* ✅ Status + bouton block/unblock inline */}
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      <StatusBadge active={u.active} />
+                      <button
+                        onClick={() => handleToggleFromTable(u)}
+                        title={u.active ? "Disable user" : "Enable user"}
+                        style={{
+                          background: u.active ? `${COLORS.accent.coral}18` : `${COLORS.accent.teal}18`,
+                          border: `1px solid ${u.active ? COLORS.accent.coral : COLORS.accent.teal}55`,
+                          color: u.active ? "#F0997B" : COLORS.accent.teal,
+                          borderRadius:6, padding:"0.2rem 0.45rem", fontSize:"0.8rem",
+                          cursor:"pointer", fontFamily:"inherit", lineHeight:1,
+                        }}>
+                        {u.active ? "🔒" : "✅"}
+                      </button>
+                    </div>
 
-                    {/* ✅ View + Disable ou Enable — PAS de Delete ici */}
-                    <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
+                    {/* View */}
+                    <div style={{ display:"flex", justifyContent:"flex-end" }}>
                       <button onClick={() => setViewUser(u)} style={{ background:`${COLORS.primary.light}18`, border:`1px solid ${COLORS.primary.light}44`, color:COLORS.primary.light, borderRadius:6, padding:"0.28rem 0.75rem", fontSize:"0.75rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
                         View
                       </button>
-                      {u.active ? (
-                        <button onClick={() => handleToggleFromTable(u)} style={{ background:`${COLORS.accent.coral}18`, border:`1px solid ${COLORS.accent.coral}44`, color:"#F0997B", borderRadius:6, padding:"0.28rem 0.75rem", fontSize:"0.75rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
-                          🔒 Disable
-                        </button>
-                      ) : (
-                        <button onClick={() => handleToggleFromTable(u)} style={{ background:`${COLORS.accent.teal}18`, border:`1px solid ${COLORS.accent.teal}44`, color:COLORS.accent.teal, borderRadius:6, padding:"0.28rem 0.75rem", fontSize:"0.75rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
-                          ✅ Enable
-                        </button>
-                      )}
                     </div>
                   </div>
                 ))
@@ -541,34 +578,63 @@ export default function ManageUsersDashboard() {
               <span style={{ fontFamily:"'Syne',sans-serif", fontSize:"0.95rem", fontWeight:700, color:COLORS.text.primary }}>Incident Reports ({reports.length})</span>
               <span style={{ fontSize:"0.75rem", color:COLORS.text.subtle }}>Approve or reject user-submitted reports</span>
             </div>
-            <div style={{ display:"grid", gridTemplateColumns:"55px 1fr 110px 120px 110px 160px", padding:"0.7rem 1.4rem", borderBottom:"1px solid rgba(127,119,221,0.06)", fontSize:"0.65rem", color:COLORS.text.subtle, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:600 }}>
-              <span>ID</span><span>User</span><span>Type</span><span>Date</span><span>Status</span><span style={{ textAlign:"right" }}>Action</span>
+            {/* ✅ Colonnes bien espacées */}
+            <div style={{ display:"grid", gridTemplateColumns:"60px 200px 150px 130px 120px 100px", padding:"0.7rem 1.4rem", borderBottom:"1px solid rgba(127,119,221,0.06)", fontSize:"0.65rem", color:COLORS.text.subtle, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:600 }}>
+              <span>ID</span>
+              <span>User</span>
+              <span>Type / Cause</span>
+              <span>Date</span>
+              <span>Status</span>
+              <span style={{ textAlign:"right" }}>Action</span>
             </div>
             {reports.length === 0 ? (
               <div style={{ padding:"3rem", textAlign:"center", color:COLORS.text.muted }}>No reports yet</div>
             ) : (
-              reports.map((r, i) => (
-                <div key={r.id} style={{ display:"grid", gridTemplateColumns:"55px 1fr 110px 120px 110px 160px", padding:"0.85rem 1.4rem", borderBottom:i===reports.length-1?"none":"1px solid rgba(127,119,221,0.06)", alignItems:"center" }}>
-                  <span style={{ fontSize:"0.78rem", color:COLORS.text.subtle, fontWeight:600 }}>#{r.id}</span>
-                  <div>
-                    <div style={{ fontSize:"0.85rem", color:COLORS.text.primary, fontWeight:500 }}>{r.userName || `User #${r.userId}`}</div>
-                    <div style={{ fontSize:"0.7rem", color:COLORS.text.subtle }}>Zone #{r.locationId}</div>
+              reports.map((r, i) => {
+                // ✅ Support r.cause (backend) et r.type (legacy)
+                const cause = r.cause || r.type || "—";
+                const causeColor = cause==="ACCIDENT"?"#D85A30":cause==="SATURATION"?"#EF9F27":"#7F77DD";
+                const causeEmoji = cause==="ACCIDENT"?"🚨":cause==="SATURATION"?"🚗":"🛣️";
+                // ✅ Support heureDate (backend) et date (legacy)
+                const dateStr = r.heureDate || r.date;
+                return (
+                  <div key={r.id} style={{ display:"grid", gridTemplateColumns:"60px 200px 150px 130px 120px 100px", padding:"0.9rem 1.4rem", borderBottom:i===reports.length-1?"none":"1px solid rgba(127,119,221,0.06)", alignItems:"center" }}>
+                    <span style={{ fontSize:"0.78rem", color:COLORS.text.subtle, fontWeight:600 }}>#{r.id}</span>
+
+                    {/* User */}
+                    <div>
+                      <div style={{ fontSize:"0.85rem", color:COLORS.text.primary, fontWeight:500 }}>
+                        {r.userName || r.mail || `User #${r.userId}`}
+                      </div>
+                      <div style={{ fontSize:"0.7rem", color:COLORS.text.subtle }}>Zone #{r.locationId}</div>
+                    </div>
+
+                    {/* ✅ Type/Cause avec couleur */}
+                    <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:causeColor+"18", border:`1px solid ${causeColor}44`, color:causeColor, fontSize:"0.75rem", fontWeight:700, padding:"0.2rem 0.6rem", borderRadius:6 }}>
+                      {causeEmoji} {cause}
+                    </span>
+
+                    {/* ✅ Date */}
+                    <span style={{ fontSize:"0.75rem", color:COLORS.text.muted }}>
+                      {dateStr ? new Date(dateStr).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "—"}
+                    </span>
+
+                    <ReportStatusBadge status={r.status} />
+
+                    {/* ✅ Boutons ✓ et ✕ */}
+                    <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
+                      {r.status === "PENDING" ? (
+                        <>
+                          <button onClick={() => handleReportAction(r.id,"approve")} title="Approve" style={{ background:`${COLORS.accent.teal}18`, border:`1px solid ${COLORS.accent.teal}44`, color:COLORS.accent.teal, borderRadius:6, padding:"0.3rem 0.65rem", fontSize:"1rem", fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>✓</button>
+                          <button onClick={() => handleReportAction(r.id,"reject")} title="Reject"  style={{ background:`${COLORS.accent.coral}18`, border:`1px solid ${COLORS.accent.coral}44`, color:"#F0997B", borderRadius:6, padding:"0.3rem 0.65rem", fontSize:"1rem", fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>✕</button>
+                        </>
+                      ) : (
+                        <span style={{ fontSize:"0.72rem", color:COLORS.text.subtle, fontStyle:"italic" }}>Done</span>
+                      )}
+                    </div>
                   </div>
-                  <span style={{ fontSize:"0.8rem" }}>{causeIcon[r.type]||"📋"} {r.type}</span>
-                  <span style={{ fontSize:"0.72rem", color:COLORS.text.muted }}>{r.date?new Date(r.date).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"—"}</span>
-                  <ReportStatusBadge status={r.status} />
-                  <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
-                    {r.status === "PENDING" ? (
-                      <>
-                        <button onClick={() => handleReportAction(r.id,"approve")} style={{ background:`${COLORS.accent.teal}18`, border:`1px solid ${COLORS.accent.teal}44`, color:COLORS.accent.teal, borderRadius:6, padding:"0.28rem 0.7rem", fontSize:"0.72rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>✓ Approve</button>
-                        <button onClick={() => handleReportAction(r.id,"reject")}  style={{ background:`${COLORS.accent.coral}18`, border:`1px solid ${COLORS.accent.coral}44`, color:"#F0997B", borderRadius:6, padding:"0.28rem 0.7rem", fontSize:"0.72rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>✕ Reject</button>
-                      </>
-                    ) : (
-                      <span style={{ fontSize:"0.72rem", color:COLORS.text.subtle, fontStyle:"italic" }}>Processed</span>
-                    )}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
