@@ -9,7 +9,7 @@ const COLORS = {
   text: { primary: "#FFFFFF", muted: "#4A4268", subtle: "#3A3660" },
 };
 
-const API = "http://localhost:8081";
+const API = process.env.REACT_APP_API_URL || "http://localhost:8081";
 
 function getHeaders() {
   const token = localStorage.getItem("token");
@@ -34,7 +34,6 @@ function StatCard({ label, value, color, icon }) {
 }
 
 function StatusBadge({ active }) {
-  // active peut être true/false/null/undefined
   const isActive = active === true || active === "true" || active === "ACTIF";
   return (
     <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:isActive?`${COLORS.accent.teal}18`:`${COLORS.accent.coral}18`, border:`1px solid ${isActive?COLORS.accent.teal:COLORS.accent.coral}44`, color:isActive?COLORS.accent.teal:"#F0997B", fontSize:"0.7rem", fontWeight:700, padding:"0.2rem 0.65rem", borderRadius:100 }}>
@@ -73,28 +72,26 @@ function Modal({ title, onClose, children, wide }) {
 }
 
 // ── USER PROFILE MODAL ──────────────────────────────────
-// GET /api/admin/userDetails/{id} → {id, name, mail, active}
-// GET /api/admin/history/user/{email} → login history
-function UserProfileModal({ user, onClose, onDelete, reports }) {
-  const [details, setDetails]         = useState(null);
+function UserProfileModal({ user, onClose, reports, onStatusChange, onDelete }) {
+  const [details, setDetails]           = useState(null);
   const [loginHistory, setLoginHistory] = useState([]);
-  const [loading, setLoading]         = useState(true);
+  const [loading, setLoading]           = useState(true);
+  const [toggling, setToggling]         = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        // 1) GET full user details (pour avoir le mail)
         const res = await fetch(`${API}/api/admin/userDetails/${user.id}`, { headers: getHeaders() });
         if (res.status === 401) { navigate("/login"); return; }
         const d = res.ok ? await res.json() : user;
         setDetails(d);
 
-        // 2) GET login history par email
-        if (d.mail) {
+        const mail = d.mail || user.mail;
+        if (mail) {
           const histRes = await fetch(
-            `${API}/api/admin/history/user/${encodeURIComponent(d.mail)}`,
+            `${API}/api/admin/history/user/${encodeURIComponent(mail)}`,
             { headers: getHeaders() }
           );
           if (histRes.ok) {
@@ -103,7 +100,6 @@ function UserProfileModal({ user, onClose, onDelete, reports }) {
           }
         }
       } catch (e) {
-        console.error(e);
         setDetails(user);
       } finally {
         setLoading(false);
@@ -111,6 +107,25 @@ function UserProfileModal({ user, onClose, onDelete, reports }) {
     };
     load();
   }, [user.id]);
+
+  const handleToggleStatus = async () => {
+    const d = details || user;
+    const newStatus = !d.active;
+    setToggling(true);
+    try {
+      const res = await fetch(
+        `${API}/api/admin/changeStatus/${d.id}?status=${newStatus}`,
+        { method: "PUT", headers: getHeaders() }
+      );
+      if (!res.ok) throw new Error();
+      setDetails(prev => ({ ...prev, active: newStatus }));
+      onStatusChange(d.id, newStatus);
+    } catch (e) {
+      console.error("Toggle status failed", e);
+    } finally {
+      setToggling(false);
+    }
+  };
 
   const userReports = reports.filter(r => r.userId === user.id);
 
@@ -123,36 +138,50 @@ function UserProfileModal({ user, onClose, onDelete, reports }) {
   }
 
   const d = details || user;
+  const lastLogin = loginHistory.length > 0 && loginHistory[0].timestamp
+    ? new Date(loginHistory[0].timestamp).toLocaleString("fr-FR", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" })
+    : "—";
 
   return (
     <Modal title="User Profile" onClose={onClose} wide>
+
       {/* Header */}
       <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:"1.5rem", padding:"1.2rem", background:"rgba(127,119,221,0.06)", borderRadius:12, border:"1px solid rgba(127,119,221,0.12)" }}>
-        <div style={{ width:56, height:56, borderRadius:"50%", background:`linear-gradient(135deg,${COLORS.primary.light},${COLORS.primary.dark})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0, fontFamily:"'Syne',sans-serif", fontWeight:800, color:"#fff" }}>
+        <div style={{ width:56, height:56, borderRadius:"50%", background:`linear-gradient(135deg,${COLORS.primary.light},${COLORS.primary.dark})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0, fontFamily:"'Syne',sans-serif", fontWeight:800, color:"#fff" }}>
           {d.name?.[0]?.toUpperCase() || "U"}
         </div>
-        <div style={{ flex:1 }}>
-          <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.1rem", fontWeight:700, color:COLORS.text.primary, marginBottom:4 }}>{d.name}</div>
-          <div style={{ fontSize:"0.82rem", color:COLORS.text.muted, marginBottom:6 }}>{d.mail || "—"}</div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.05rem", fontWeight:700, color:COLORS.text.primary, marginBottom:2 }}>
+            {d.name || "—"}
+          </div>
+          {/* ✅ Username */}
+          {d.username && (
+            <div style={{ fontSize:"0.78rem", color:COLORS.primary.light, fontWeight:600, marginBottom:3 }}>
+              @{d.username}
+            </div>
+          )}
+          <div style={{ fontSize:"0.78rem", color:COLORS.text.muted, marginBottom:6 }}>{d.mail || "—"}</div>
           <StatusBadge active={d.active} />
         </div>
-        <div style={{ textAlign:"right" }}>
+        <div style={{ textAlign:"right", flexShrink:0 }}>
           <div style={{ fontSize:"0.65rem", color:COLORS.text.subtle, textTransform:"uppercase", fontWeight:600, marginBottom:4 }}>User ID</div>
           <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"1rem", fontWeight:700, color:COLORS.primary.light }}>#{d.id}</div>
         </div>
       </div>
 
-      {/* Info Cards */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:"1.5rem" }}>
+      {/* ✅ Info Cards — 6 cases */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:"1.5rem" }}>
         {[
-          { label:"Full Name", value: d.name || "—" },
-          { label:"Email",     value: d.mail || "—" },
-          { label:"Status",    value: d.active ? "Active" : "Inactive" },
-          { label:"Last Login",value: "28 Apr 2026, 10:30" },
+          { label:"Full Name",  value: d.name     || "—" },
+          { label:"Username",   value: d.username ? `@${d.username}` : "—", highlight: true },
+          { label:"Email",      value: d.mail     || "—" },
+          { label:"Status",     value: d.active ? "Active" : "Inactive" },
+          { label:"User ID",    value: `#${d.id}` },
+          { label:"Last Login", value: lastLogin },
         ].map(info => (
           <div key={info.label} style={{ background:"rgba(255,255,255,0.03)", borderRadius:8, padding:"0.75rem 1rem", border:"1px solid rgba(255,255,255,0.06)" }}>
-            <div style={{ fontSize:"0.65rem", color:COLORS.text.subtle, textTransform:"uppercase", fontWeight:600, letterSpacing:"0.08em", marginBottom:4 }}>{info.label}</div>
-            <div style={{ fontSize:"0.85rem", color:COLORS.text.primary, fontWeight:500 }}>{info.value}</div>
+            <div style={{ fontSize:"0.62rem", color:COLORS.text.subtle, textTransform:"uppercase", fontWeight:600, letterSpacing:"0.08em", marginBottom:4 }}>{info.label}</div>
+            <div style={{ fontSize:"0.82rem", color: info.highlight ? COLORS.primary.light : COLORS.text.primary, fontWeight:500, wordBreak:"break-all" }}>{info.value}</div>
           </div>
         ))}
       </div>
@@ -167,25 +196,22 @@ function UserProfileModal({ user, onClose, onDelete, reports }) {
             <div style={{ padding:"1.2rem", textAlign:"center", color:COLORS.text.subtle, fontSize:"0.82rem" }}>No login history found</div>
           ) : (
             loginHistory.slice(0, 5).map((log, i) => {
-              // LoginHistory entity: timestamp, success (bool), ipAddress, email
-              const isSuccess = log.success === true || log.status === "SUCCESS";
+              const isSuccess = log.status === "SUCCESS";
               const date = log.timestamp
                 ? new Date(log.timestamp).toLocaleString("fr-FR", { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" })
-                : log.date || "—";
+                : "—";
               return (
                 <div key={i} style={{ display:"flex", alignItems:"center", gap:12, padding:"0.65rem 1rem", borderBottom:i===Math.min(loginHistory.length,5)-1?"none":"1px solid rgba(255,255,255,0.04)" }}>
-                  <span style={{ fontSize:14, color:isSuccess?COLORS.accent.teal:COLORS.accent.coral }}>
-                    {isSuccess ? "✓" : "✕"}
-                  </span>
+                  <span style={{ fontSize:14, color:isSuccess?COLORS.accent.teal:COLORS.accent.coral }}>{isSuccess ? "✓" : "✕"}</span>
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:"0.8rem", color:COLORS.text.primary, fontWeight:500 }}>{date}</div>
                     <div style={{ fontSize:"0.72rem", color:COLORS.text.muted }}>
-                      {isSuccess ? "Login successful" : log.failureReason || "Wrong password / Account blocked"}
+                      {log.recentActivity || (isSuccess ? "Login successful" : "Failed attempt")}
                     </div>
                   </div>
-                  <div style={{ fontSize:"0.7rem", color:COLORS.text.subtle }}>{log.ipAddress || log.ip || "—"}</div>
+                  <div style={{ fontSize:"0.7rem", color:COLORS.text.subtle }}>{log.ipAddress || "—"}</div>
                   <span style={{ fontSize:"0.68rem", fontWeight:700, color:isSuccess?COLORS.accent.teal:COLORS.accent.coral, background:isSuccess?`${COLORS.accent.teal}15`:`${COLORS.accent.coral}15`, padding:"0.15rem 0.5rem", borderRadius:6 }}>
-                    {isSuccess ? "Success" : "Failed"}
+                    {log.status || (isSuccess ? "Success" : "Failed")}
                   </span>
                 </div>
               );
@@ -212,12 +238,47 @@ function UserProfileModal({ user, onClose, onDelete, reports }) {
         </div>
       )}
 
-      {/* Actions */}
+      {/* ✅ Actions modal : Close | Disable/Enable | 🗑 Delete */}
       <div style={{ display:"flex", gap:10, justifyContent:"flex-end", paddingTop:"1rem", borderTop:"1px solid rgba(255,255,255,0.06)" }}>
-        <button onClick={onClose} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.1)", color:"#7C7A99", borderRadius:8, padding:"0.65rem 1.2rem", fontSize:"0.88rem", cursor:"pointer", fontFamily:"inherit" }}>Close</button>
-        <button onClick={() => { onDelete(user); onClose(); }} style={{ background:COLORS.accent.coral, color:"#fff", border:"none", borderRadius:8, padding:"0.65rem 1.2rem", fontSize:"0.88rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
-          🗑 Delete User
+        <button onClick={onClose} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.1)", color:"#7C7A99", borderRadius:8, padding:"0.65rem 1.2rem", fontSize:"0.88rem", cursor:"pointer", fontFamily:"inherit" }}>
+          Close
         </button>
+        <button
+          onClick={handleToggleStatus}
+          disabled={toggling}
+          style={{
+            background: d.active ? `${COLORS.accent.coral}18` : `${COLORS.accent.teal}18`,
+            border: `1px solid ${d.active ? COLORS.accent.coral : COLORS.accent.teal}55`,
+            color: d.active ? "#F0997B" : COLORS.accent.teal,
+            borderRadius:8, padding:"0.65rem 1.2rem", fontSize:"0.88rem", fontWeight:600,
+            cursor: toggling ? "not-allowed" : "pointer", fontFamily:"inherit",
+          }}
+        >
+          {toggling ? "..." : d.active ? "🔒 Disable" : "✅ Enable"}
+        </button>
+        {/* ✅ Delete reste ici dans le modal */}
+        <button
+          onClick={() => { onDelete(d); onClose(); }}
+          style={{ background:COLORS.accent.coral, color:"#fff", border:"none", borderRadius:8, padding:"0.65rem 1.2rem", fontSize:"0.88rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}
+        >
+          🗑 Delete
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// ── CONFIRM DELETE MODAL ─────────────────────────────────
+function DeleteModal({ user, onClose, onConfirm }) {
+  return (
+    <Modal title="Delete User" onClose={onClose}>
+      <p style={{ color:"#9CA3AF", fontSize:"0.9rem", lineHeight:1.7, marginBottom:"1.5rem" }}>
+        Are you sure you want to delete <span style={{ color:COLORS.text.primary, fontWeight:600 }}>{user.name}</span>?
+        This action cannot be undone.
+      </p>
+      <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+        <button onClick={onClose} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.1)", color:"#7C7A99", borderRadius:8, padding:"0.68rem 1.2rem", fontSize:"0.88rem", cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
+        <button onClick={() => onConfirm(user)} style={{ background:COLORS.accent.coral, color:"#fff", border:"none", borderRadius:8, padding:"0.68rem 1.4rem", fontSize:"0.88rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>Delete</button>
       </div>
     </Modal>
   );
@@ -237,39 +298,29 @@ export default function ManageUsersDashboard() {
   const [showDelete, setShowDelete]     = useState(null);
   const [reports, setReports]           = useState([]);
   const [activeTab, setActiveTab]       = useState("users");
+  const [statusFilter, setStatusFilter] = useState("ALL"); // ✅ filtre status
 
   const showToast = (msg, type="success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3200);
   };
 
-  // GET /api/admin/users → UserDTO {id, name, active}
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("token");
-      console.log("🔑 Token:", token ? "present" : "MISSING");
-      console.log("📡 Calling:", `${API}/api/admin/users`);
-
       const res = await fetch(`${API}/api/admin/users`, { headers: getHeaders() });
-      console.log("📊 Status:", res.status);
-
       if (res.status === 401) { navigate("/login"); return; }
       if (res.status === 403) { showToast("Access denied — Admin only", "error"); setLoading(false); return; }
       if (!res.ok) { showToast(`Error ${res.status}`, "error"); setLoading(false); return; }
-
       const data = await res.json();
-      console.log("✅ Users received:", data);
       setUsers(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.error("❌ fetchAll error:", e);
-      showToast("Erreur de chargement — voir console", "error");
+      showToast("Erreur de chargement", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  // Reports (mock — endpoint à créer)
   const fetchReports = async () => {
     try {
       const res = await fetch(`${API}/api/admin/reports`, { headers:getHeaders() });
@@ -286,7 +337,38 @@ export default function ManageUsersDashboard() {
 
   useEffect(() => { fetchAll(); fetchReports(); }, []);
 
-  // Search by name — GET /api/users/name/{name}
+  const handleStatusChange = (userId, newStatus) => {
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, active: newStatus } : u));
+    if (searchResult) setSearchResult(prev => prev.map(u => u.id === userId ? { ...u, active: newStatus } : u));
+    showToast(newStatus ? "User enabled ✅" : "User disabled 🔒");
+  };
+
+  const handleToggleFromTable = async (user) => {
+    const newStatus = !user.active;
+    try {
+      const res = await fetch(
+        `${API}/api/admin/changeStatus/${user.id}?status=${newStatus}`,
+        { method: "PUT", headers: getHeaders() }
+      );
+      if (!res.ok) throw new Error();
+      handleStatusChange(user.id, newStatus);
+    } catch (e) {
+      showToast("Erreur lors du changement de statut", "error");
+    }
+  };
+
+  const handleDelete = async (user) => {
+    try {
+      const res = await fetch(`${API}/api/admin/user/${user.id}`, { method:"DELETE", headers:getHeaders() });
+      if (!res.ok) throw new Error();
+      showToast("User deleted");
+      setShowDelete(null);
+      fetchAll();
+    } catch (e) {
+      showToast("Error deleting", "error");
+    }
+  };
+
   const handleSearch = async () => {
     const val = searchVal.trim();
     if (!val) { setSearchResult(null); return; }
@@ -302,29 +384,23 @@ export default function ManageUsersDashboard() {
 
   const clearSearch = () => { setSearchVal(""); setSearchResult(null); };
 
-  // DELETE /api/admin/user/{id}
-  const handleDelete = async (user) => {
-    try {
-      const res = await fetch(`${API}/api/admin/user/${user.id}`, { method:"DELETE", headers:getHeaders() });
-      if (!res.ok) throw new Error();
-      showToast("User deleted");
-      setShowDelete(null); clearSearch(); fetchAll();
-    } catch (e) { showToast("Error deleting", "error"); }
-  };
-
-  // Approve/Reject report
   const handleReportAction = async (reportId, action) => {
     try {
-      const res = await fetch(`${API}/api/admin/reports/${reportId}/${action}`, { method:"PUT", headers:getHeaders() });
-      if (!res.ok) throw new Error();
+      await fetch(`${API}/api/admin/reports/${reportId}/${action}`, { method:"PUT", headers:getHeaders() });
     } catch (e) { /* mock */ }
     setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: action === "approve" ? "APPROVED" : "REJECTED" } : r));
     showToast(`Report ${action === "approve" ? "approved ✓" : "rejected ✕"}`);
   };
 
-  const displayed = searchResult ?? users;
+  // ✅ Filtre status appliqué sur la liste
+  const baseList   = searchResult ?? users;
+  const displayed  = statusFilter === "ALL"
+    ? baseList
+    : statusFilter === "ACTIVE"
+      ? baseList.filter(u => u.active === true)
+      : baseList.filter(u => u.active === false);
   const pendingReports = reports.filter(r => r.status === "PENDING").length;
-  const causeIcon = { ACCIDENT:"🚨", SATURATION:"🚗", TRAFIC:"🛣️" };
+  const causeIcon      = { ACCIDENT:"🚨", SATURATION:"🚗", TRAFIC:"🛣️" };
 
   return (
     <div style={{ fontFamily:"'DM Sans',sans-serif", background:COLORS.bg.main, color:COLORS.text.primary, minHeight:"100vh" }}>
@@ -350,19 +426,17 @@ export default function ManageUsersDashboard() {
 
       <div style={{ marginLeft:220, padding:"2.5rem", position:"relative", zIndex:1 }}>
 
-        {/* Header */}
         <div style={{ marginBottom:"2rem" }}>
           <h1 style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.7rem", fontWeight:800, color:COLORS.text.primary, letterSpacing:"-0.5px" }}>Manage Users</h1>
           <p style={{ color:COLORS.text.muted, fontSize:"0.88rem", marginTop:4, fontWeight:300 }}>User accounts and report validation</p>
         </div>
 
-        {/* Stat Cards */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(4,minmax(0,1fr))", gap:14, marginBottom:"2rem" }}>
           {[
-            { label:"Total Users",     value:users.length,                                           color:COLORS.primary.light, icon:"👥" },
-            { label:"Active",          value:users.filter(u=>u.active===true).length,                color:COLORS.accent.teal,   icon:"✅" },
-            { label:"Inactive",        value:users.filter(u=>u.active===false).length,               color:COLORS.accent.coral,  icon:"🔒" },
-            { label:"Pending Reports", value:pendingReports,                                          color:COLORS.accent.amber,  icon:"📋" },
+            { label:"Total Users",     value:users.length,                            color:COLORS.primary.light, icon:"👥" },
+            { label:"Active",          value:users.filter(u=>u.active===true).length,  color:COLORS.accent.teal,  icon:"✅" },
+            { label:"Inactive",        value:users.filter(u=>u.active===false).length, color:COLORS.accent.coral, icon:"🔒" },
+            { label:"Pending Reports", value:pendingReports,                           color:COLORS.accent.amber,  icon:"📋" },
           ].map(s => <StatCard key={s.label} label={s.label} value={s.value} color={s.color} icon={s.icon} />)}
         </div>
 
@@ -370,7 +444,7 @@ export default function ManageUsersDashboard() {
         <div style={{ display:"flex", background:COLORS.bg.hover, borderRadius:10, padding:4, gap:3, marginBottom:"1.5rem", width:"fit-content" }}>
           {[
             { key:"users",   label:"👥 Users" },
-            { key:"reports", label:`📋 Reports${pendingReports>0?` (${pendingReports})`:""}` },
+            { key:"reports", label:`📋 Reports${pendingReports>0?` (${pendingReports})`:""}`},
           ].map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
               background:activeTab===tab.key?`linear-gradient(135deg,${COLORS.primary.light},${COLORS.primary.dark})`:"transparent",
@@ -384,7 +458,6 @@ export default function ManageUsersDashboard() {
         {/* ── TAB USERS ── */}
         {activeTab === "users" && (
           <>
-            {/* Search by name */}
             <div style={{ background:COLORS.bg.card, border:"1px solid rgba(127,119,221,0.1)", borderRadius:14, padding:"1rem 1.4rem", marginBottom:"1.2rem", display:"flex", alignItems:"center", gap:12 }}>
               <span style={{ fontSize:"0.78rem", color:COLORS.text.muted, fontWeight:600, whiteSpace:"nowrap" }}>🔍 Search by name</span>
               <input value={searchVal} onChange={e=>setSearchVal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSearch()}
@@ -393,16 +466,26 @@ export default function ManageUsersDashboard() {
                 {searching ? "..." : "Search"}
               </button>
               {searchResult && <button onClick={clearSearch} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.1)", color:"#7C7A99", borderRadius:8, padding:"0.6rem 1rem", fontSize:"0.82rem", cursor:"pointer", fontFamily:"inherit" }}>Clear ✕</button>}
+              {/* ✅ Dropdown filtre par status */}
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                style={{ background:COLORS.bg.hover, border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:"0.6rem 1rem", fontSize:"0.85rem", color:statusFilter==="ALL"?COLORS.text.muted:statusFilter==="ACTIVE"?COLORS.accent.teal:"#F0997B", outline:"none", fontFamily:"inherit", cursor:"pointer" }}
+              >
+                <option value="ALL"      style={{ background:COLORS.bg.card, color:"#fff" }}>All Users</option>
+                <option value="ACTIVE"   style={{ background:COLORS.bg.card, color:"#1D9E75" }}>✅ Active</option>
+                <option value="INACTIVE" style={{ background:COLORS.bg.card, color:"#F0997B" }}>🔒 Inactive</option>
+              </select>
             </div>
 
             {searchResult && <div style={{ marginBottom:"0.75rem", fontSize:"0.8rem", color:COLORS.text.muted }}>{searchResult.length} result{searchResult.length!==1?"s":""} found</div>}
 
-            {/* Users Table */}
+            {/* ✅ Table — ID | Name | Email | Status | Actions (View + Disable/Enable) */}
             <div style={{ background:COLORS.bg.card, border:"1px solid rgba(127,119,221,0.1)", borderRadius:14, overflow:"hidden" }}>
-              {/* Table header — basé sur UserDTO: id, name, active */}
-              <div style={{ display:"grid", gridTemplateColumns:"60px 1fr 100px 160px", padding:"0.8rem 1.4rem", borderBottom:"1px solid rgba(127,119,221,0.06)", fontSize:"0.68rem", color:COLORS.text.subtle, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:600 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"55px 1fr 1fr 90px 170px", padding:"0.8rem 1.4rem", borderBottom:"1px solid rgba(127,119,221,0.06)", fontSize:"0.68rem", color:COLORS.text.subtle, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:600 }}>
                 <span>ID</span>
                 <span>Name</span>
+                <span>Email</span>
                 <span>Status</span>
                 <span style={{ textAlign:"right" }}>Actions</span>
               </div>
@@ -413,19 +496,36 @@ export default function ManageUsersDashboard() {
                 <div style={{ padding:"3rem", textAlign:"center", color:COLORS.text.muted }}>No users found</div>
               ) : (
                 displayed.map((u, i) => (
-                  <div key={u.id??i} style={{ display:"grid", gridTemplateColumns:"60px 1fr 100px 160px", padding:"0.9rem 1.4rem", borderBottom:i===displayed.length-1?"none":"1px solid rgba(127,119,221,0.06)", alignItems:"center" }}>
+                  <div key={u.id??i} style={{ display:"grid", gridTemplateColumns:"55px 1fr 1fr 90px 170px", padding:"0.9rem 1.4rem", borderBottom:i===displayed.length-1?"none":"1px solid rgba(127,119,221,0.06)", alignItems:"center" }}>
                     <span style={{ fontSize:"0.8rem", color:COLORS.text.subtle, fontWeight:600 }}>#{u.id}</span>
-                    <span style={{ fontSize:"0.9rem", color:COLORS.text.primary, fontWeight:500 }}>{u.name}</span>
+
+                    {/* Name + username */}
+                    <div>
+                      <div style={{ fontSize:"0.88rem", color:COLORS.text.primary, fontWeight:500 }}>{u.name}</div>
+                      {u.username && <div style={{ fontSize:"0.7rem", color:COLORS.primary.light, marginTop:1 }}>@{u.username}</div>}
+                    </div>
+
+                    {/* ✅ Email */}
+                    <span style={{ fontSize:"0.8rem", color:COLORS.text.muted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      {u.mail || "—"}
+                    </span>
+
                     <StatusBadge active={u.active} />
+
+                    {/* ✅ View + Disable ou Enable — PAS de Delete ici */}
                     <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
-                      {/* View → GET /api/admin/userDetails/{id} */}
                       <button onClick={() => setViewUser(u)} style={{ background:`${COLORS.primary.light}18`, border:`1px solid ${COLORS.primary.light}44`, color:COLORS.primary.light, borderRadius:6, padding:"0.28rem 0.75rem", fontSize:"0.75rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
                         View
                       </button>
-                      {/* Delete → DELETE /api/admin/user/{id} */}
-                      <button onClick={() => setShowDelete(u)} style={{ background:`${COLORS.accent.coral}18`, border:`1px solid ${COLORS.accent.coral}44`, color:"#F0997B", borderRadius:6, padding:"0.28rem 0.75rem", fontSize:"0.75rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
-                        Delete
-                      </button>
+                      {u.active ? (
+                        <button onClick={() => handleToggleFromTable(u)} style={{ background:`${COLORS.accent.coral}18`, border:`1px solid ${COLORS.accent.coral}44`, color:"#F0997B", borderRadius:6, padding:"0.28rem 0.75rem", fontSize:"0.75rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                          🔒 Disable
+                        </button>
+                      ) : (
+                        <button onClick={() => handleToggleFromTable(u)} style={{ background:`${COLORS.accent.teal}18`, border:`1px solid ${COLORS.accent.teal}44`, color:COLORS.accent.teal, borderRadius:6, padding:"0.28rem 0.75rem", fontSize:"0.75rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                          ✅ Enable
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))
@@ -474,22 +574,24 @@ export default function ManageUsersDashboard() {
         )}
       </div>
 
-      {/* Profile Modal */}
+      {/* ✅ Profile Modal — avec Delete à côté de Close */}
       {viewUser && (
-        <UserProfileModal user={viewUser} onClose={() => setViewUser(null)} onDelete={handleDelete} reports={reports} />
+        <UserProfileModal
+          user={viewUser}
+          onClose={() => setViewUser(null)}
+          reports={reports}
+          onStatusChange={handleStatusChange}
+          onDelete={(u) => { setViewUser(null); setShowDelete(u); }}
+        />
       )}
 
-      {/* Delete Confirm */}
+      {/* ✅ Confirm Delete séparé */}
       {showDelete && (
-        <Modal title="Delete User" onClose={() => setShowDelete(null)}>
-          <p style={{ color:"#9CA3AF", fontSize:"0.9rem", lineHeight:1.7, marginBottom:"1.5rem" }}>
-            Are you sure you want to delete <span style={{ color:COLORS.text.primary, fontWeight:600 }}>{showDelete.name}</span>?
-          </p>
-          <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
-            <button onClick={() => setShowDelete(null)} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.1)", color:"#7C7A99", borderRadius:8, padding:"0.68rem 1.2rem", fontSize:"0.88rem", cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
-            <button onClick={() => handleDelete(showDelete)} style={{ background:COLORS.accent.coral, color:"#fff", border:"none", borderRadius:8, padding:"0.68rem 1.4rem", fontSize:"0.88rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>Delete</button>
-          </div>
-        </Modal>
+        <DeleteModal
+          user={showDelete}
+          onClose={() => setShowDelete(null)}
+          onConfirm={handleDelete}
+        />
       )}
     </div>
   );

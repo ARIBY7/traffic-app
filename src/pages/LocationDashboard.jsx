@@ -100,8 +100,16 @@ function getZoneName(zone) {
   return zone.nomQuartier || zone.name || "—";
 }
 
-function SensorRow({ sensor, last, onEdit, onDelete }) {
+// ✅ SensorRow — reçoit zones pour retrouver le nom via zoneId
+function SensorRow({ sensor, last, onEdit, onDelete, zones, navigate }) {
   const [hov, setHov] = useState(false);
+
+  // ✅ FIX : le backend retourne zoneId, pas zone.nomQuartier
+  // On cherche le nom dans la liste zones déjà chargée
+  const zoneName = zones.find(z => z.id === sensor.zoneId)?.nomQuartier
+    || getZoneName(sensor.zone)   // fallback si zone est un objet
+    || "—";
+
   return (
     <div onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{
       display:"grid", gridTemplateColumns:"55px 1fr 1fr 110px 110px 150px",
@@ -110,7 +118,22 @@ function SensorRow({ sensor, last, onEdit, onDelete }) {
     }}>
       <span style={{ fontSize:"0.82rem", color:COLORS.text.subtle, fontWeight:600 }}>#{sensor.id}</span>
       <span style={{ fontSize:"0.9rem", color:COLORS.text.primary, fontWeight:500 }}>{sensor.name}</span>
-      <span style={{ fontSize:"0.85rem", color:COLORS.text.muted }}>{getZoneName(sensor.zone)}</span>
+
+      {/* ✅ Zone : nom cliquable → navigate vers /admin/zones?id=X */}
+      <span
+        onClick={() => sensor.zoneId && navigate(`/admin/zones?id=${sensor.zoneId}`)}
+        style={{
+          fontSize:"0.85rem",
+          color: sensor.zoneId ? COLORS.primary.light : COLORS.text.muted,
+          fontWeight: sensor.zoneId ? 500 : 400,
+          cursor: sensor.zoneId ? "pointer" : "default",
+          textDecoration: sensor.zoneId ? "underline" : "none",
+          textUnderlineOffset: 3,
+        }}
+      >
+        {zoneName}
+      </span>
+
       <Badge etat={sensor.etat} />
       <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:sensor.accidentSignale?`${COLORS.accent.coral}18`:"rgba(255,255,255,0.04)", border:`1px solid ${sensor.accidentSignale?COLORS.accent.coral+"44":"rgba(255,255,255,0.08)"}`, color:sensor.accidentSignale?"#F0997B":COLORS.text.muted, fontSize:"0.7rem", fontWeight:600, padding:"0.22rem 0.65rem", borderRadius:100 }}>
         <span style={{ width:5, height:5, borderRadius:"50%", background:sensor.accidentSignale?COLORS.accent.coral:COLORS.text.muted, display:"inline-block" }} />
@@ -155,11 +178,9 @@ export default function LocationDashboard() {
     finally { setLoading(false); }
   };
 
-  // ✅ Charge les zones depuis l'API — pas de création automatique
-  // Pour créer les zones, aller sur la page /admin/zones
   const fetchZones = async () => {
     try {
-      const res = await fetch(`${API}/api/admin/zones`, { headers: getHeaders() });
+      const res = await fetch(`${API}/api/users/zones`, { headers: getHeaders() });
       if (res.ok) {
         const data = await res.json();
         setZones(Array.isArray(data) ? data : []);
@@ -193,7 +214,7 @@ export default function LocationDashboard() {
     try {
       const body = {
         name: form.name,
-        zone: { id: parseInt(form.zoneId), nomQuartier: form.zoneName },
+        zoneId: parseInt(form.zoneId),
         etat: form.etat,
         accidentSignale: form.accidentSignale,
       };
@@ -209,7 +230,7 @@ export default function LocationDashboard() {
     try {
       const body = {
         name: form.name,
-        zone: { id: parseInt(form.zoneId), nomQuartier: form.zoneName },
+        zoneId: parseInt(form.zoneId),
         etat: form.etat,
         accidentSignale: form.accidentSignale,
       };
@@ -230,12 +251,10 @@ export default function LocationDashboard() {
   };
 
   const openEdit = (sensor) => {
-    const zoneId = sensor.zone?.id ? String(sensor.zone.id) : "";
-    const zoneName = getZoneName(sensor.zone);
     setForm({
       name: sensor.name,
-      zoneId,
-      zoneName,
+      zoneId: sensor.zoneId ? String(sensor.zoneId) : (sensor.zone?.id ? String(sensor.zone.id) : ""),
+      zoneName: getZoneName(sensor.zone),
       etat: sensor.etat || "ACTIF",
       accidentSignale: sensor.accidentSignale || false,
     });
@@ -315,7 +334,7 @@ export default function LocationDashboard() {
           ) : displayed.length === 0 ? (
             <div style={{ padding:"3rem", textAlign:"center", color:COLORS.text.muted }}>No sensors found</div>
           ) : (
-            displayed.map((s, i) => <SensorRow key={s.id??i} sensor={s} last={i===displayed.length-1} onEdit={openEdit} onDelete={setShowDelete} />)
+            displayed.map((s, i) => <SensorRow key={s.id??i} sensor={s} last={i===displayed.length-1} onEdit={openEdit} onDelete={setShowDelete} zones={zones} navigate={navigate} />)
           )}
         </div>
       </div>
@@ -339,6 +358,7 @@ export default function LocationDashboard() {
               </div>
             )}
           </div>
+          {/* ✅ Item 8 — Dropdown Status */}
           <FormField label="Status" value={form.etat} onChange={e=>setForm({...form,etat:e.target.value})} options={["ACTIF","INACTIF"]} />
           <div style={{ display:"flex", gap:10, justifyContent:"flex-end", marginTop:8 }}>
             <button onClick={()=>setShowCreate(false)} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.1)", color:"#7C7A99", borderRadius:8, padding:"0.68rem 1.2rem", fontSize:"0.88rem", cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
@@ -361,6 +381,7 @@ export default function LocationDashboard() {
               {zones.map(z => <option key={z.id} value={z.id} style={{ background:"#110F1E" }}>{z.nomQuartier}</option>)}
             </select>
           </div>
+          {/* ✅ Item 8 — Dropdown Status */}
           <FormField label="Status" value={form.etat} onChange={e=>setForm({...form,etat:e.target.value})} options={["ACTIF","INACTIF"]} />
           <FormField label="Accident signalé" value={form.accidentSignale?"true":"false"} onChange={e=>setForm({...form,accidentSignale:e.target.value==="true"})} options={["false","true"]} />
           <div style={{ display:"flex", gap:10, justifyContent:"flex-end", marginTop:8 }}>

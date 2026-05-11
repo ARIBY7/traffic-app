@@ -66,7 +66,8 @@ export default function Auth() {
   const navigate = useNavigate();
 
   const [loginForm, setLoginForm] = useState({ mail: "", password: "" });
-  const [regForm, setRegForm] = useState({ name: "", mail: "", passWord: "" });
+  // ✅ Ajout de userName dans le formulaire register
+  const [regForm, setRegForm] = useState({ name: "", userName: "", mail: "", passWord: "" });
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -96,7 +97,7 @@ export default function Auth() {
       const res = await fetch("http://localhost:8081/api/users/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(regForm),
+        body: JSON.stringify(regForm), // ✅ userName inclus automatiquement
       });
       if (!res.ok) { setError("Erreur lors de l'inscription"); return; }
       setSuccess("Compte créé ! Connectez-vous.");
@@ -126,7 +127,6 @@ export default function Auth() {
         ::selection{background:#7F77DD44;color:#fff;}
       `}</style>
 
-      {/* GLOW ORBS — same as Home */}
       <GlowOrb x="15%"  y="25%"  color={C.p600} size={500} opacity={0.2}  />
       <GlowOrb x="85%"  y="75%"  color={C.p400} size={400} opacity={0.15} />
       <GlowOrb x="50%"  y="55%"  color={C.t400} size={300} opacity={0.08} />
@@ -227,6 +227,12 @@ export default function Auth() {
                 type="text" name="name" placeholder="Full name"
                 value={regForm.name}
                 onChange={e => setRegForm({ ...regForm, name: e.target.value })}
+              />
+              {/* ✅ Nouveau champ Username */}
+              <StyledInput
+                type="text" name="userName" placeholder="Username"
+                value={regForm.userName}
+                onChange={e => setRegForm({ ...regForm, userName: e.target.value })}
               />
               <StyledInput
                 type="email" name="mail" placeholder="Email address"

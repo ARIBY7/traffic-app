@@ -19,6 +19,7 @@ function getHeaders() {
   return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
+// ✅ Item 16 — niveauColor et niveauLabel cohérents partout
 function niveauColor(n) {
   switch (n?.toUpperCase()) {
     case "BLOCKED":  return COLORS.accent.coral;
@@ -28,9 +29,12 @@ function niveauColor(n) {
     default:         return COLORS.primary.light;
   }
 }
+
 function niveauLabel(n) {
-  return { BLOCKED:"Blocked", HEAVY:"Critical", MODERATE:"High", LOW:"Moderate" }[n?.toUpperCase()] || n || "—";
+  const map = { BLOCKED:"Blocked", HEAVY:"Critical", MODERATE:"High", LOW:"Moderate" };
+  return map[n?.toUpperCase()] || n || "Unknown";
 }
+
 function causeLabel(c) {
   return { ACCIDENT:"Accident", SATURATION:"Saturation", TRAFIC:"Dense Traffic" }[c?.toUpperCase()] || c || "—";
 }
@@ -51,13 +55,36 @@ function StatCard({ label, value, color, icon }) {
 
 function NiveauBadge({ niveau }) {
   const color = niveauColor(niveau);
-  return <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:color+"20", border:`1px solid ${color}55`, color, fontSize:"0.68rem", fontWeight:700, padding:"0.18rem 0.55rem", borderRadius:6 }}>{niveauLabel(niveau)}</span>;
+  return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:color+"20", border:`1px solid ${color}55`, color, fontSize:"0.68rem", fontWeight:700, padding:"0.18rem 0.55rem", borderRadius:6 }}>
+      {niveauLabel(niveau)}
+    </span>
+  );
 }
 
 function CauseBadge({ cause }) {
-  const map = { ACCIDENT:{color:COLORS.accent.coral,bg:COLORS.accent.coral+"18"}, SATURATION:{color:COLORS.primary.light,bg:COLORS.primary.light+"18"}, TRAFIC:{color:COLORS.accent.amber,bg:COLORS.accent.amber+"18"} };
+  const map = {
+    ACCIDENT:   { color:COLORS.accent.coral,  bg:COLORS.accent.coral+"18"  },
+    SATURATION: { color:COLORS.primary.light, bg:COLORS.primary.light+"18" },
+    TRAFIC:     { color:COLORS.accent.amber,  bg:COLORS.accent.amber+"18"  },
+  };
   const s = map[cause?.toUpperCase()] || { color:"#7C7A99", bg:"rgba(255,255,255,0.04)" };
   return <span style={{ background:s.bg, color:s.color, fontSize:"0.72rem", fontWeight:600, padding:"0.2rem 0.6rem", borderRadius:6 }}>{causeLabel(cause)}</span>;
+}
+
+// ✅ Item 17 — Badge status APPROVED / PENDING
+function StatusBadge({ status }) {
+  const isApproved = status?.toUpperCase() === "APPROVED";
+  return (
+    <span style={{
+      background: isApproved ? `${COLORS.accent.teal}18` : "rgba(255,255,255,0.04)",
+      border: `1px solid ${isApproved ? COLORS.accent.teal+"55" : "rgba(255,255,255,0.1)"}`,
+      color: isApproved ? COLORS.accent.teal : COLORS.text.muted,
+      fontSize:"0.68rem", fontWeight:700, padding:"0.18rem 0.55rem", borderRadius:6,
+    }}>
+      {isApproved ? "✓ Approved" : "Pending"}
+    </span>
+  );
 }
 
 function Modal({ title, onClose, children }) {
@@ -77,48 +104,57 @@ function Modal({ title, onClose, children }) {
 export default function CongestionDashboard() {
   const navigate = useNavigate();
 
-  const [allData, setAllData]       = useState([]);
-  const [loading, setLoading]       = useState(false);
-  const [toast, setToast]           = useState(null);
-  const [page, setPage]             = useState(0);
-  const [filterMode, setFilterMode] = useState("zone");
-  const [filterVal, setFilterVal]   = useState("");
-  const [niveauSel, setNiveauSel]   = useState(NIVEAUX[0]);
-  const [causeSel, setCauseSel]     = useState(CAUSES[0]);
-  const [showDelete, setShowDelete] = useState(null);
-  const [dateFilter, setDateFilter] = useState("");
-  const [sensors, setSensors]                   = useState([]);
+  const [allData, setAllData]             = useState([]);
+  const [loading, setLoading]             = useState(true);
+  const [toast, setToast]                 = useState(null);
+  const [page, setPage]                   = useState(0);
+  const [filterMode, setFilterMode]       = useState("niveau");
+  const [filterVal, setFilterVal]         = useState("");
+  const [niveauSel, setNiveauSel]         = useState(NIVEAUX[0]);
+  const [causeSel, setCauseSel]           = useState(CAUSES[0]);
+  const [showDelete, setShowDelete]       = useState(null);
+  const [dateFilter, setDateFilter]       = useState("");
+  const [sensors, setSensors]             = useState([]);
   const [selectedSensorId, setSelectedSensorId] = useState("");
-  const [latestData, setLatestData]             = useState(null);
-  const [latestLoading, setLatestLoading]       = useState(false);
+  const [latestData, setLatestData]       = useState(null);
+  const [latestLoading, setLatestLoading] = useState(false);
 
   const showToast = (msg, type="success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
-  useEffect(() => {
-    const loadSensors = async () => {
-      try {
-        const res = await fetch(`${API}/api/users/sensors`, { headers:getHeaders() });
-        if (res.status === 401) { navigate("/login"); return; }
-        if (!res.ok) return;
+  // ✅ Item 16 — Chargement automatique de TOUTES les congestions au démarrage
+  const loadAllCongestions = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/api/admin/congestions`, { headers:getHeaders() });
+      if (res.status === 401) { navigate("/login"); return; }
+      if (res.ok) {
         const data = await res.json();
-        setSensors(Array.isArray(data) ? data : []);
-      } catch (e) { console.error(e); }
-    };
-
-    const loadAllCongestions = async () => {
-      setLoading(true);
-      try {
+        const sorted = (Array.isArray(data) ? data : []).sort((a,b) => new Date(b.heureDate)-new Date(a.heureDate));
+        setAllData(sorted);
+      } else {
+        // Fallback — charger par niveau si /api/admin/congestions échoue
         const results = await Promise.allSettled(
-          NIVEAUX.map(n => fetch(`${API}/api/users/congestions/niveau/${n}`, { headers:getHeaders() }).then(r => r.ok ? r.json() : []).catch(() => []))
+          NIVEAUX.map(n => fetch(`${API}/api/users/congestions/niveau/${n}`, { headers:getHeaders() })
+            .then(r => r.ok ? r.json() : []).catch(() => []))
         );
         const combined = results.filter(r=>r.status==="fulfilled").flatMap(r=>Array.isArray(r.value)?r.value:[]);
         const unique = Array.from(new Map(combined.map(c=>[c.id,c])).values());
         unique.sort((a,b) => new Date(b.heureDate)-new Date(a.heureDate));
         setAllData(unique);
-      } catch (e) { console.error(e); }
-      finally { setLoading(false); }
-    };
+      }
+    } catch(e) { console.error(e); }
+    finally { setLoading(false); }
+  };
 
+  useEffect(() => {
+    const loadSensors = async () => {
+      try {
+        const res = await fetch(`${API}/api/users/sensors`, { headers:getHeaders() });
+        if (!res.ok) return;
+        const data = await res.json();
+        setSensors(Array.isArray(data) ? data : []);
+      } catch(e) { console.error(e); }
+    };
     loadSensors();
     loadAllCongestions();
   }, []);
@@ -128,10 +164,9 @@ export default function CongestionDashboard() {
     setLatestLoading(true); setLatestData(null);
     try {
       const res = await fetch(`${API}/api/users/congestions/latestOflocation/${locId}`, { headers:getHeaders() });
-      if (res.status === 401) { navigate("/login"); return; }
       if (!res.ok) { showToast("No congestion data for this zone", "error"); return; }
       setLatestData(await res.json());
-    } catch (e) { showToast("Error loading zone data", "error"); }
+    } catch(e) { showToast("Error loading zone data", "error"); }
     finally { setLatestLoading(false); }
   };
 
@@ -147,10 +182,9 @@ export default function CongestionDashboard() {
     setLoading(true);
     try {
       const res = await fetch(`${API}/api/users/congestions/location/${id}`, { headers:getHeaders() });
-      if (res.status === 401) { navigate("/login"); return; }
       const d = await res.json();
       setAllData(Array.isArray(d) ? d : []); setPage(0);
-    } catch (e) { showToast("Erreur", "error"); }
+    } catch(e) { showToast("Erreur", "error"); }
     finally { setLoading(false); }
   };
 
@@ -160,7 +194,7 @@ export default function CongestionDashboard() {
       const res = await fetch(`${API}/api/users/congestions/niveau/${niveau}`, { headers:getHeaders() });
       const d = await res.json();
       setAllData(Array.isArray(d) ? d : []); setPage(0);
-    } catch (e) { showToast("Erreur", "error"); }
+    } catch(e) { showToast("Erreur", "error"); }
     finally { setLoading(false); }
   };
 
@@ -170,7 +204,7 @@ export default function CongestionDashboard() {
       const res = await fetch(`${API}/api/users/congestions/cause/${cause}`, { headers:getHeaders() });
       const d = await res.json();
       setAllData(Array.isArray(d) ? d : []); setPage(0);
-    } catch (e) { showToast("Erreur", "error"); }
+    } catch(e) { showToast("Erreur", "error"); }
     finally { setLoading(false); }
   };
 
@@ -187,11 +221,33 @@ export default function CongestionDashboard() {
       showToast("Congestion supprimée");
       setShowDelete(null);
       setAllData(prev => prev.filter(c => c.id !== showDelete.id));
-    } catch (e) { showToast("Erreur suppression", "error"); }
+    } catch(e) { showToast("Erreur suppression", "error"); }
   };
 
-  const counts = NIVEAUX.reduce((acc,n) => { acc[n]=allData.filter(c=>c.niveau?.toUpperCase()===n).length; return acc; }, {});
-  const filteredData = dateFilter ? allData.filter(c => c.heureDate && new Date(c.heureDate).toISOString().slice(0,10)===dateFilter) : allData;
+  // ✅ Item 17 — Approve congestion
+  const handleApprove = async (congestion) => {
+    try {
+      const res = await fetch(`${API}/api/admin/congestions/${congestion.id}/approve`, {
+        method:"PUT", headers:getHeaders()
+      });
+      if (!res.ok) throw new Error();
+      showToast("Congestion approuvée ✓");
+      // Mise à jour locale du statut
+      setAllData(prev => prev.map(c => c.id === congestion.id ? { ...c, status:"APPROVED" } : c));
+    } catch(e) {
+      showToast("Erreur approbation", "error");
+    }
+  };
+
+  const counts = NIVEAUX.reduce((acc,n) => {
+    acc[n] = allData.filter(c=>c.niveau?.toUpperCase()===n).length;
+    return acc;
+  }, {});
+
+  const filteredData = dateFilter
+    ? allData.filter(c => c.heureDate && new Date(c.heureDate).toISOString().slice(0,10)===dateFilter)
+    : allData;
+
   const paginated  = filteredData.slice(page*PAGE_SIZE, (page+1)*PAGE_SIZE);
   const totalPages = Math.ceil(filteredData.length/PAGE_SIZE);
   const selectedSensor = sensors.find(s => String(s.id)===String(selectedSensorId));
@@ -204,6 +260,7 @@ export default function CongestionDashboard() {
         ::selection { background:rgba(127,119,221,0.3); color:#fff; }
         ::-webkit-scrollbar { width:4px; }
         ::-webkit-scrollbar-thumb { background:rgba(127,119,221,0.3); border-radius:4px; }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter:invert(0.4); }
       `}</style>
 
       <GlowOrb x="10%" y="20%" color={COLORS.primary.dark} size={500} opacity={0.1} />
@@ -221,10 +278,12 @@ export default function CongestionDashboard() {
 
         <div style={{ marginBottom:"1.5rem" }}>
           <h1 style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.7rem", fontWeight:800, color:COLORS.text.primary, letterSpacing:"-0.5px" }}>Congestion Zones</h1>
-          <p style={{ color:COLORS.text.muted, fontSize:"0.88rem", marginTop:4, fontWeight:300 }}>Real-time congestion monitoring across all urban zones.</p>
+          <p style={{ color:COLORS.text.muted, fontSize:"0.88rem", marginTop:4, fontWeight:300 }}>
+            Real-time congestion monitoring — {allData.length} records loaded
+          </p>
         </div>
 
-        {/* Stat Cards */}
+        {/* ✅ Item 16 — Stat Cards avec counts corrects */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(4,minmax(0,1fr))", gap:14, marginBottom:"1.5rem" }}>
           {[
             { label:"Blocked",  key:"BLOCKED",  color:COLORS.accent.coral, icon:"🔴" },
@@ -243,8 +302,7 @@ export default function CongestionDashboard() {
                 <option value="">— Select a zone —</option>
                 {sensors.map(s => (
                   <option key={s.id} value={s.id} style={{ background:COLORS.bg.card }}>
-                    {/* ✅ FIX: zone est un objet */}
-                    {s.name ? `${s.name} (${s.zone?.nomQuartier ?? "Zone "+s.id})` : `Location #${s.id}`}
+                    {s.name || `Location #${s.id}`}
                   </option>
                 ))}
               </select>
@@ -258,10 +316,7 @@ export default function CongestionDashboard() {
                     {latestData.heureDate ? new Date(latestData.heureDate).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}) : "—"}
                   </div>
                   {selectedSensor && (
-                    <div style={{ fontSize:"0.72rem", color:COLORS.text.subtle, marginTop:2 }}>
-                      {/* ✅ FIX: zone est un objet */}
-                      {selectedSensor.name} — {selectedSensor.zone?.nomQuartier ?? "Zone "+selectedSensorId}
-                    </div>
+                    <div style={{ fontSize:"0.72rem", color:COLORS.text.subtle, marginTop:2 }}>{selectedSensor.name}</div>
                   )}
                 </>
               )}
@@ -274,11 +329,12 @@ export default function CongestionDashboard() {
               { icon:"🚗", label:"Vehicles",       value:latestData?.nbrVehicule??"-",                                              color:COLORS.text.primary },
               { icon:"⚡", label:"Avg Speed km/h", value:latestData?.vitesseMoy!=null?Number(latestData.vitesseMoy).toFixed(0):"-", color:COLORS.accent.amber },
               { icon:"📊", label:"Volume Traffic", value:latestData?.volumeTraffic!=null?Math.round(latestData.volumeTraffic):"-",  color:COLORS.text.primary },
-              { icon:"🚦", label:"Level",          value:latestData?niveauLabel(latestData.niveau):"-",                            color:latestData?niveauColor(latestData.niveau):COLORS.text.subtle },
+              // ✅ Item 16 — Level affiché avec niveauLabel
+              { icon:"🚦", label:"Level",          value:latestData ? niveauLabel(latestData.niveau) : "-",                         color:latestData ? niveauColor(latestData.niveau) : COLORS.text.subtle },
             ].map(stat => (
               <div key={stat.label} style={{ textAlign:"center", background:"rgba(255,255,255,0.03)", borderRadius:10, padding:"1rem", border:"1px solid rgba(127,119,221,0.1)" }}>
                 <div style={{ fontSize:24, marginBottom:8 }}>{stat.icon}</div>
-                <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.7rem", fontWeight:800, color:stat.color, marginBottom:4 }}>{stat.value}</div>
+                <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.5rem", fontWeight:800, color:stat.color, marginBottom:4 }}>{stat.value}</div>
                 <div style={{ fontSize:"0.75rem", color:COLORS.text.muted, textTransform:"uppercase", fontWeight:600 }}>{stat.label}</div>
               </div>
             ))}
@@ -301,16 +357,23 @@ export default function CongestionDashboard() {
 
           <button onClick={handleSearch} disabled={filterMode==="zone"&&!filterVal.trim()} style={{ background:`linear-gradient(135deg,${COLORS.primary.light},${COLORS.primary.dark})`, color:COLORS.text.primary, border:"none", borderRadius:8, padding:"0.65rem 1.3rem", fontSize:"0.88rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>Search</button>
           <input type="date" value={dateFilter} onChange={e=>{setDateFilter(e.target.value);setPage(0);}} style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:"0.6rem 1rem", fontSize:"0.85rem", color:dateFilter?COLORS.text.primary:COLORS.text.muted, outline:"none", fontFamily:"inherit", cursor:"pointer", colorScheme:"dark" }} />
-          {(allData.length>0||dateFilter) && <button onClick={()=>{setAllData([]);setFilterVal("");setDateFilter("");setPage(0);}} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.1)", color:"#7C7A99", borderRadius:8, padding:"0.65rem 1rem", fontSize:"0.82rem", cursor:"pointer", fontFamily:"inherit" }}>Clear ✕</button>}
+          <button onClick={() => { loadAllCongestions(); setFilterVal(""); setDateFilter(""); setPage(0); }} style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.1)", color:"#7C7A99", borderRadius:8, padding:"0.65rem 1rem", fontSize:"0.82rem", cursor:"pointer", fontFamily:"inherit" }}>↻ All</button>
         </div>
 
-        {/* Table */}
+        {/* ✅ Table avec colonne Status + bouton Approve */}
         <div style={{ background:COLORS.bg.card, border:"1px solid rgba(127,119,221,0.1)", borderRadius:14, overflow:"hidden" }}>
           <div style={{ padding:"0.85rem 1.4rem", borderBottom:"1px solid rgba(127,119,221,0.06)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-            <span style={{ fontFamily:"'Syne',sans-serif", fontSize:"0.95rem", fontWeight:700, color:COLORS.text.primary }}>All Congestions {filteredData.length>0&&`(${filteredData.length})`}</span>
+            <span style={{ fontFamily:"'Syne',sans-serif", fontSize:"0.95rem", fontWeight:700, color:COLORS.text.primary }}>
+              All Congestions {filteredData.length > 0 && `(${filteredData.length})`}
+            </span>
+            <span style={{ fontSize:"0.72rem", color:COLORS.text.subtle }}>
+              {allData.filter(c=>c.status==="APPROVED").length} approved
+            </span>
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"55px 110px 120px 85px 85px 100px 110px 130px", padding:"0.75rem 1.4rem", borderBottom:"1px solid rgba(127,119,221,0.06)", fontSize:"0.68rem", color:COLORS.text.subtle, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:600 }}>
-            <span>ID</span><span>Level</span><span>Cause</span><span>Speed</span><span>Vehicles</span><span>Location</span><span>Date</span><span style={{ textAlign:"right" }}>Actions</span>
+
+          {/* ✅ Item 17 — Colonne Status ajoutée */}
+          <div style={{ display:"grid", gridTemplateColumns:"50px 100px 110px 80px 80px 90px 95px 100px 140px", padding:"0.75rem 1.4rem", borderBottom:"1px solid rgba(127,119,221,0.06)", fontSize:"0.65rem", color:COLORS.text.subtle, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:600 }}>
+            <span>ID</span><span>Level</span><span>Cause</span><span>Speed</span><span>Vehicles</span><span>Loc.</span><span>Status</span><span>Date</span><span style={{ textAlign:"right" }}>Actions</span>
           </div>
 
           {loading ? (
@@ -318,22 +381,30 @@ export default function CongestionDashboard() {
           ) : paginated.length === 0 ? (
             <div style={{ padding:"3rem", textAlign:"center" }}>
               <div style={{ fontSize:"2.5rem", marginBottom:"0.75rem", opacity:0.2 }}>🧠</div>
-              <div style={{ color:COLORS.text.muted, fontSize:"0.88rem" }}>Use the search panel above to load congestion data</div>
+              <div style={{ color:COLORS.text.muted, fontSize:"0.88rem" }}>No congestion data</div>
             </div>
           ) : (
             paginated.map((c, i) => {
               const color = niveauColor(c.niveau);
+              const isApproved = c.status?.toUpperCase() === "APPROVED";
               return (
-                <div key={c.id} style={{ display:"grid", gridTemplateColumns:"55px 110px 120px 85px 85px 100px 110px 130px", padding:"0.85rem 1.4rem", borderBottom:i===paginated.length-1?"none":"1px solid rgba(127,119,221,0.06)", alignItems:"center", borderLeft:`2px solid ${color}` }}>
+                <div key={c.id} style={{ display:"grid", gridTemplateColumns:"50px 100px 110px 80px 80px 90px 95px 100px 140px", padding:"0.85rem 1.4rem", borderBottom:i===paginated.length-1?"none":"1px solid rgba(127,119,221,0.06)", alignItems:"center", borderLeft:`2px solid ${color}` }}>
                   <span style={{ fontSize:"0.78rem", color:COLORS.text.subtle, fontWeight:600 }}>#{c.id}</span>
+                  {/* ✅ Item 16 — NiveauBadge avec label correct */}
                   <NiveauBadge niveau={c.niveau} />
                   <CauseBadge cause={c.cause} />
-                  <span style={{ fontSize:"0.82rem", color:COLORS.accent.amber, fontWeight:500 }}>{c.vitesseMoy!=null?`${Number(c.vitesseMoy).toFixed(1)} km/h`:"—"}</span>
+                  <span style={{ fontSize:"0.82rem", color:COLORS.accent.amber, fontWeight:500 }}>{c.vitesseMoy!=null?`${Number(c.vitesseMoy).toFixed(1)}`:"—"}</span>
                   <span style={{ fontSize:"0.82rem", color:"#D1D5DB" }}>{c.nbrVehicule??"—"}</span>
-                  <span style={{ fontSize:"0.75rem", color:COLORS.text.subtle }}>{c.locationId?`Loc #${c.locationId}`:"—"}</span>
+                  <span style={{ fontSize:"0.75rem", color:COLORS.text.subtle }}>{c.locationId?`#${c.locationId}`:"—"}</span>
+                  {/* ✅ Item 17 — StatusBadge */}
+                  <StatusBadge status={c.status} />
                   <span style={{ fontSize:"0.72rem", color:COLORS.text.subtle }}>{c.heureDate?new Date(c.heureDate).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"—"}</span>
-                  <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
-                    <button onClick={()=>setShowDelete(c)} style={{ background:COLORS.accent.coral+"18", border:`1px solid ${COLORS.accent.coral}44`, color:"#F0997B", borderRadius:6, padding:"0.25rem 0.6rem", fontSize:"0.72rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>Delete</button>
+                  <div style={{ display:"flex", gap:5, justifyContent:"flex-end" }}>
+                    {/* ✅ Item 17 — Bouton Approve */}
+                    {!isApproved && (
+                      <button onClick={() => handleApprove(c)} style={{ background:`${COLORS.accent.teal}18`, border:`1px solid ${COLORS.accent.teal}44`, color:COLORS.accent.teal, borderRadius:6, padding:"0.25rem 0.5rem", fontSize:"0.68rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>✓ Approve</button>
+                    )}
+                    <button onClick={()=>setShowDelete(c)} style={{ background:COLORS.accent.coral+"18", border:`1px solid ${COLORS.accent.coral}44`, color:"#F0997B", borderRadius:6, padding:"0.25rem 0.5rem", fontSize:"0.68rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>Delete</button>
                   </div>
                 </div>
               );
