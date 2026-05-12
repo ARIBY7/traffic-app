@@ -14,11 +14,13 @@ const COLORS = {
 const API = "http://localhost:8081";
 const NIVEAUX = ["BLOCKED", "HEAVY", "MODERATE", "LOW"];
 
+// ── Coordonnées GPS exactes — clés = NOM_QUARTIER exact de la DB ──
 const ZONE_COORDS = {
   "Ain Chock":      [33.5366, -7.5731],
   "Ain Sebaa":      [33.6089, -7.5314],
-  "Anfa":           [33.5892, -7.6625],
+  "Anfa":           [33.5910, -7.6580],
   "Ben M'sik":      [33.5534, -7.5514],
+  "Ben Msik":       [33.5534, -7.5514],
   "Bernoussi":      [33.6203, -7.5108],
   "Hay Hassani":    [33.5667, -7.6833],
   "Hay Mohammadi":  [33.5731, -7.5614],
@@ -29,7 +31,22 @@ const ZONE_COORDS = {
   "Sidi Bernoussi": [33.6072, -7.5086],
   "Sidi Moumen":    [33.5897, -7.5136],
   "Sidi Othmane":   [33.5692, -7.5786],
-  "Autre":          [33.5731, -7.5898],
+  "Corniche Ain Diab": [33.5987, -7.6908],
+};
+
+// ── Types de zones (TYPE_ROUTE DB) avec couleur et emoji ──
+const ZONE_TYPE_META = {
+  // Nouveaux types (après SQL UPDATE)
+  HIGHWAY:      { label:"Highway",      color:"#E24B4A", emoji:"🛣️" },
+  BOULEVARD:    { label:"Boulevard",    color:"#7F77DD", emoji:"🛤️" },
+  AVENUE:       { label:"Avenue",       color:"#EF9F27", emoji:"🚦" },
+  STREET:       { label:"Street",       color:"#4A9EDD", emoji:"🏙️" },
+  COASTAL_ROAD: { label:"Coastal Road", color:"#1D9E75", emoji:"🌊" },
+  INTERSECTION: { label:"Intersection", color:"#D85A30", emoji:"✖️" },
+  // Anciens types déjà dans la DB
+  Urbaine:      { label:"Urbaine",      color:"#7F77DD", emoji:"🏙️" },
+  Autoroute:    { label:"Autoroute",    color:"#E24B4A", emoji:"🛣️" },
+  Avenue:       { label:"Avenue",       color:"#EF9F27", emoji:"🚦" },
 };
 
 const CASABLANCA_CENTER = [33.5892, -7.6114];
@@ -207,12 +224,19 @@ export default function UserPage() {
   const getLatestCongestionForSensor = (sensorId) =>
     congestions.find(c => c.locationId === sensorId);
 
+  // ✅ Priorité : coords DB (latitude/longitude) → ZONE_COORDS par nom → fallback aléatoire
   const getSensorCoords = (sensor) => {
-    if (sensor.zone && ZONE_COORDS[sensor.zone]) return ZONE_COORDS[sensor.zone];
-    return [
-      CASABLANCA_CENTER[0] + (Math.random() - 0.5) * 0.08,
-      CASABLANCA_CENTER[1] + (Math.random() - 0.5) * 0.08,
-    ];
+    // 1. Coords directes depuis la DB via zoneLatitude/zoneLongitude
+    if (sensor.zoneLatitude && sensor.zoneLongitude)
+      return [parseFloat(sensor.zoneLatitude), parseFloat(sensor.zoneLongitude)];
+    // 2. Coords par nom de zone dans le dictionnaire
+    if (sensor.zone && ZONE_COORDS[sensor.zone])
+      return ZONE_COORDS[sensor.zone];
+    // 3. Fallback déterministe basé sur l'ID (pas random pour éviter les sauts)
+    const seed = (sensor.id || 1) * 7919;
+    const dlat = ((seed % 100) - 50) / 1000;
+    const dlng = ((seed % 137) - 68) / 1000;
+    return [CASABLANCA_CENTER[0] + dlat, CASABLANCA_CENTER[1] + dlng];
   };
 
   const counts = NIVEAUX.reduce((acc, n) => {
@@ -273,7 +297,12 @@ export default function UserPage() {
               </div>
             </div>
           </div>
-          <button onClick={() => { localStorage.clear(); navigate("/"); }}
+          <button onClick={() => {
+              const reports = localStorage.getItem("allReports");
+              localStorage.clear();
+              if (reports) localStorage.setItem("allReports", reports);
+              navigate("/");
+            }}
             onMouseEnter={e=>e.currentTarget.style.color="#F0997B"}
             onMouseLeave={e=>e.currentTarget.style.color=COLORS.text.muted}
             style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.1)", color:COLORS.text.muted, borderRadius:8, padding:"0.4rem 0.9rem", fontSize:"0.8rem", cursor:"pointer", fontFamily:"inherit" }}>
@@ -332,10 +361,24 @@ export default function UserPage() {
                 return (
                   <Marker key={sensor.id} position={coords} icon={createColoredIcon(color)}>
                     <Popup>
-                      <div style={{ minWidth:180 }}>
-                        <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"0.95rem", fontWeight:700, color:"white", marginBottom:8 }}>
+                      <div style={{ minWidth:190 }}>
+                        <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"0.95rem", fontWeight:700, color:"white", marginBottom:4 }}>
                           📍 {sensor.name || `Zone #${sensor.id}`}
                         </div>
+                        {/* ✅ Badge type de zone — supporte zoneType, typeRoute, ou zone name */}
+                        {(() => {
+                          const typeKey = sensor.zoneType || sensor.typeRoute || sensor.zoneTypeRoute;
+                          const meta = typeKey ? (ZONE_TYPE_META[typeKey] || { label:typeKey, color:"#7F77DD", emoji:"📍" }) : null;
+                          if (meta) return (
+                            <div style={{ display:"inline-flex", alignItems:"center", gap:4, background:meta.color+"22", border:`1px solid ${meta.color}55`, color:meta.color, fontSize:"0.68rem", fontWeight:700, padding:"0.15rem 0.55rem", borderRadius:6, marginBottom:10 }}>
+                              {meta.emoji} {meta.label}
+                            </div>
+                          );
+                          if (sensor.zone) return (
+                            <div style={{ fontSize:"0.72rem", color:"#9CA3AF", marginBottom:8 }}>{sensor.zone}</div>
+                          );
+                          return null;
+                        })()}
                         {cong ? (
                           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
                             {[
