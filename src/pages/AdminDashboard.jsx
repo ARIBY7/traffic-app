@@ -20,44 +20,76 @@ function GlowOrb({ x, y, color, size = 400, opacity = 0.08 }) {
   return <div style={{ position:"fixed", left:x, top:y, width:size, height:size, borderRadius:"50%", background:color, opacity, filter:"blur(110px)", pointerEvents:"none", zIndex:0, transform:"translate(-50%,-50%)" }} />;
 }
 
-function StatCard({ label, value, color, icon }) {
+function StatCard({ label, value, sub, color, icon, loading, onClick }) {
+  const [hov, setHov] = useState(false);
   return (
-    <div style={{ background:COLORS.bg.card, border:"1px solid rgba(127,119,221,0.1)", borderTop:`2px solid ${color}`, borderRadius:12, padding:"1.1rem 1.3rem", textAlign:"center" }}>
-      <div style={{ fontSize:20, marginBottom:8 }}>{icon}</div>
-      <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.7rem", fontWeight:800, color, marginBottom:4 }}>{value}</div>
-      <div style={{ fontSize:"0.68rem", color:COLORS.text.muted, textTransform:"uppercase", letterSpacing:"0.1em", fontWeight:700 }}>{label}</div>
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        background: COLORS.bg.card,
+        border: `1px solid ${hov && onClick ? color+"55" : "rgba(127,119,221,0.1)"}`,
+        borderLeft: `3px solid ${color}`,
+        borderRadius: 14, padding: "1.3rem 1.5rem",
+        cursor: onClick ? "pointer" : "default",
+        transition: "all 0.2s",
+        transform: hov && onClick ? "translateY(-2px)" : "none",
+        position: "relative", overflow: "hidden",
+      }}
+    >
+      <div style={{ position:"absolute", right:14, top:14, fontSize:20, opacity:0.12 }}>{icon}</div>
+      <div style={{ fontSize:"0.68rem", color:COLORS.text.muted, textTransform:"uppercase", letterSpacing:"0.1em", fontWeight:700, marginBottom:10 }}>{label}</div>
+      <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"2rem", fontWeight:800, color:loading?"#3A3660":color, lineHeight:1, marginBottom:6 }}>
+        {loading ? "—" : value}
+      </div>
+      {sub && <div style={{ fontSize:"0.72rem", color:COLORS.text.subtle }}>{sub}</div>}
     </div>
   );
 }
 
-function QuickCard({ label, desc, icon, color, onClick }) {
-  const [hov, setHov] = useState(false);
+function SystemBar({ label, value, max, color }) {
+  const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   return (
-    <div onClick={onClick} onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{
-      background:hov?COLORS.bg.hover:COLORS.bg.card,
-      border:`1px solid ${hov?color+"44":"rgba(127,119,221,0.1)"}`,
-      borderRadius:14, padding:"1.4rem 1.6rem", cursor:"pointer", transition:"all 0.22s",
-      transform:hov?"translateY(-3px)":"none", position:"relative", overflow:"hidden",
-      display:"flex", alignItems:"center", gap:"1.2rem",
-    }}>
-      {hov && <div style={{ position:"absolute", top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,transparent,${color},transparent)` }} />}
-      <div style={{ width:46, height:46, borderRadius:12, flexShrink:0, background:color+"18", border:`1px solid ${color}35`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>{icon}</div>
-      <div>
-        <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"0.95rem", fontWeight:700, color:COLORS.text.primary, marginBottom:4 }}>{label}</div>
-        <div style={{ fontSize:"0.8rem", color:COLORS.text.muted, fontWeight:300, lineHeight:1.5 }}>{desc}</div>
+    <div style={{ marginBottom:14 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+        <span style={{ fontSize:"0.8rem", color:COLORS.text.primary, fontWeight:500 }}>{label}</span>
+        <span style={{ fontSize:"0.8rem", color, fontWeight:700 }}>{value.toLocaleString()}</span>
       </div>
-      <div style={{ marginLeft:"auto", color:hov?color:COLORS.text.muted, fontSize:"1.1rem", transition:"color 0.2s" }}>›</div>
+      <div style={{ height:6, background:"rgba(255,255,255,0.05)", borderRadius:100, overflow:"hidden" }}>
+        <div style={{ height:"100%", width:`${pct}%`, background:`linear-gradient(90deg,${color}88,${color})`, borderRadius:100, transition:"width 1s ease" }} />
+      </div>
     </div>
+  );
+}
+
+function NiveauBadge({ niveau }) {
+  const map = {
+    BLOCKED:  { label:"Blocked",  color:COLORS.accent.coral },
+    HEAVY:    { label:"Heavy",    color:"#E24B4A" },
+    MODERATE: { label:"Moderate", color:COLORS.accent.amber },
+    LOW:      { label:"Low",      color:COLORS.accent.teal },
+  };
+  const s = map[niveau?.toUpperCase()] || { label:niveau||"—", color:COLORS.primary.light };
+  return (
+    <span style={{ background:s.color+"20", border:`1px solid ${s.color}55`, color:s.color, fontSize:"0.68rem", fontWeight:700, padding:"0.18rem 0.5rem", borderRadius:6 }}>
+      {s.label}
+    </span>
   );
 }
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const [pulse, setPulse]   = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [stats, setStats]                 = useState({ total:0, active:0, inactive:0 });
-  const [recentSensors, setRecentSensors] = useState([]);
-  const [loading, setLoading]             = useState(true);
-  const [pulse, setPulse]                 = useState(true);
+  const [stats, setStats] = useState({
+    totalRecords: 0, avgSpeed: 0, accidents: 0,
+    totalSensors: 0, activeSensors: 0,
+    totalSignals: 0, totalCongestions: 0,
+    pendingCongestions: 0, approvedCongestions: 0,
+  });
+  const [recentCongestions, setRecentCongestions] = useState([]);
 
   useEffect(() => {
     const t = setInterval(() => setPulse(v => !v), 1200);
@@ -65,31 +97,47 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const load = async () => {
+      setLoading(true);
       try {
-        const res = await fetch(`${API}/api/users/sensors`, { headers:getHeaders() });
-        if (res.status === 401) { navigate("/login"); return; }
-        const data = await res.json();
+        const [records, sens, sigs, congs, speed, accidents] = await Promise.allSettled([
+          fetch(`${API}/api/admin/data/total`,            { headers:getHeaders() }).then(r => r.ok ? r.json() : 0),
+          fetch(`${API}/api/users/sensors`,               { headers:getHeaders() }).then(r => r.ok ? r.json() : []),
+          fetch(`${API}/api/users/signals`,               { headers:getHeaders() }).then(r => r.ok ? r.json() : []),
+          fetch(`${API}/api/admin/congestions`,           { headers:getHeaders() }).then(r => r.ok ? r.json() : []),
+          fetch(`${API}/api/admin/data/speed/latestDate`, { headers:getHeaders() }).then(r => r.ok ? r.json() : 0),
+          fetch(`${API}/api/users/data/niveau/accidents`, { headers:getHeaders() }).then(r => r.ok ? r.json() : 0),
+        ]);
+
+        const sensList  = Array.isArray(sens.value)  ? sens.value  : [];
+        const congsList = Array.isArray(congs.value) ? congs.value : [];
+        const sigsList  = Array.isArray(sigs.value)  ? sigs.value  : [];
+
+        const active   = sensList.filter(s => s.etat?.toUpperCase() === "ACTIF" || s.active === true).length;
+        const pending  = congsList.filter(c => c.status === "PENDING").length;
+        const approved = congsList.filter(c => c.status === "APPROVED").length;
+
         setStats({
-          total:    data.length,
-          active:   data.filter(s => s.etat?.toUpperCase() === "ACTIF").length,
-          inactive: data.filter(s => s.etat?.toUpperCase() !== "ACTIF").length,
+          totalRecords:        records.value  ?? 0,
+          avgSpeed:            speed.value    ?? 0,
+          accidents:           accidents.value ?? 0,
+          totalSensors:        sensList.length,
+          activeSensors:       active,
+          totalSignals:        sigsList.length,
+          totalCongestions:    congsList.length,
+          pendingCongestions:  pending,
+          approvedCongestions: approved,
         });
-        setRecentSensors(data.slice(-5).reverse());
-      } catch (e) { console.error(e); }
+
+        const sorted = [...congsList].sort((a,b) => new Date(b.heureDate) - new Date(a.heureDate));
+        setRecentCongestions(sorted.slice(0, 5));
+      } catch(e) { console.error(e); }
       finally { setLoading(false); }
     };
-    fetchData();
+    load();
   }, []);
 
-  const quickActions = [
-    { label:"Sensors",         desc:"Add, edit or remove traffic sensors",  icon:"◎",  color:COLORS.primary.light, path:"/admin/locations" },
-    { label:"Traffic Data",    desc:"Browse and filter traffic records",     icon:"▦",  color:COLORS.accent.amber,  path:"/admin/traffic" },
-    { label:"Congestion",      desc:"View and analyze congestion alerts",    icon:"◈",  color:COLORS.accent.coral,  path:"/admin/congestion" },
-    { label:"Manage Users",    desc:"Create, edit or manage user accounts",  icon:"👤", color:COLORS.primary.light, path:"/admin/users" },
-    { label:"Traffic Signals", desc:"Control traffic lights and signs",      icon:"🚦", color:COLORS.accent.teal,   path:"/admin/signals" },
-    { label:"Statistics",      desc:"Spark analytics & traffic insights",    icon:"▤",  color:COLORS.accent.amber,  path:"/admin/statistics" },
-  ];
+  const fmt = (v, dec=1) => v != null ? Number(v).toFixed(dec) : "—";
 
   return (
     <div style={{ fontFamily:"'DM Sans',sans-serif", background:COLORS.bg.main, color:COLORS.text.primary, minHeight:"100vh" }}>
@@ -102,84 +150,147 @@ export default function AdminDashboard() {
       `}</style>
 
       <GlowOrb x="15%" y="20%" color={COLORS.primary.dark} size={500} opacity={0.1} />
-      <GlowOrb x="85%" y="70%" color={COLORS.primary.light} size={400} opacity={0.08} />
-      <GlowOrb x="50%" y="50%" color={COLORS.accent.teal} size={350} opacity={0.07} />
+      <GlowOrb x="85%" y="70%" color={COLORS.accent.teal}  size={400} opacity={0.07} />
 
       <Sidebar />
 
       <div style={{ marginLeft:220, padding:"2.5rem", position:"relative", zIndex:1 }}>
 
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"2.5rem" }}>
+        {/* Header */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"2rem" }}>
           <div>
             <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
-              <h1 style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.7rem", fontWeight:800, color:COLORS.text.primary, letterSpacing:"-0.5px" }}>Admin Dashboard</h1>
+              <h1 style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.7rem", fontWeight:800, color:COLORS.text.primary, letterSpacing:"-0.5px" }}>
+                Admin Dashboard
+              </h1>
               <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:`${COLORS.accent.teal}18`, border:`1px solid ${COLORS.accent.teal}40`, borderRadius:100, padding:"0.2rem 0.7rem" }}>
                 <div style={{ width:6, height:6, borderRadius:"50%", background:COLORS.accent.teal, transform:`scale(${pulse?1:0.65})`, transition:"transform 0.5s ease", boxShadow:`0 0 5px ${COLORS.accent.teal}` }} />
                 <span style={{ fontSize:"0.7rem", color:COLORS.accent.teal, fontWeight:600, letterSpacing:"0.06em" }}>LIVE</span>
               </div>
             </div>
-            <p style={{ color:COLORS.text.muted, fontSize:"0.88rem", fontWeight:300 }}>Welcome back — here's your city traffic overview.</p>
+            <p style={{ color:COLORS.text.muted, fontSize:"0.88rem", fontWeight:300 }}>
+              Welcome back — here's your city traffic overview.
+            </p>
           </div>
-          <div style={{ fontSize:"0.8rem", color:COLORS.text.muted, textAlign:"right" }}>
-            <div style={{ color:COLORS.text.subtle, fontWeight:500 }}>
-              {new Date().toLocaleDateString("en-GB",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}
+          <div style={{ fontSize:"0.8rem", color:COLORS.text.subtle, fontWeight:500 }}>
+            {new Date().toLocaleDateString("en-GB", { weekday:"long", year:"numeric", month:"long", day:"numeric" })}
+          </div>
+        </div>
+
+        {/* ── Row 1 : Key metrics ── */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,minmax(0,1fr))", gap:14, marginBottom:"1.5rem" }}>
+          <StatCard label="Traffic Records" value={(stats.totalRecords??0).toLocaleString()} color={COLORS.primary.light} icon="📊" sub="All data points"      loading={loading} onClick={() => navigate("/admin/traffic")} />
+          <StatCard label="Avg Speed"        value={`${fmt(stats.avgSpeed,2)} km/h`}          color={COLORS.accent.amber}  icon="⚡" sub="Latest date average"  loading={loading} />
+          <StatCard label="Total Accidents"  value={(stats.accidents??0).toLocaleString()}    color={COLORS.accent.coral}  icon="🚨" sub="Across all records"   loading={loading} onClick={() => navigate("/admin/traffic")} />
+        </div>
+
+        {/* ── Row 2 : Infrastructure + Congestion ── */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.5rem", marginBottom:"1.5rem" }}>
+
+          {/* System Health */}
+          <div style={{ background:COLORS.bg.card, border:"1px solid rgba(127,119,221,0.1)", borderRadius:14, padding:"1.5rem" }}>
+            <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"0.95rem", fontWeight:700, color:COLORS.text.primary, marginBottom:"1.4rem" }}>
+              🏗️ Infrastructure
             </div>
+            {loading ? (
+              <div style={{ color:COLORS.text.muted, fontSize:"0.85rem" }}>Loading...</div>
+            ) : (
+              <>
+                <SystemBar label="Active Sensors"    value={stats.activeSensors}      max={stats.totalSensors||1}       color={COLORS.accent.teal} />
+                <SystemBar label="Total Sensors"     value={stats.totalSensors}       max={stats.totalSensors||1}       color={COLORS.primary.light} />
+                <SystemBar label="Traffic Signals"   value={stats.totalSignals}       max={Math.max(stats.totalSignals,10)} color={COLORS.accent.amber} />
+                <div style={{ marginTop:"1rem", paddingTop:"1rem", borderTop:"1px solid rgba(255,255,255,0.05)", display:"flex", gap:20 }}>
+                  <div style={{ textAlign:"center" }}>
+                    <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.4rem", fontWeight:800, color:COLORS.accent.teal }}>{stats.activeSensors}</div>
+                    <div style={{ fontSize:"0.68rem", color:COLORS.text.muted, textTransform:"uppercase", fontWeight:600 }}>Active</div>
+                  </div>
+                  <div style={{ textAlign:"center" }}>
+                    <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.4rem", fontWeight:800, color:COLORS.accent.coral }}>{stats.totalSensors - stats.activeSensors}</div>
+                    <div style={{ fontSize:"0.68rem", color:COLORS.text.muted, textTransform:"uppercase", fontWeight:600 }}>Inactive</div>
+                  </div>
+                  <div style={{ textAlign:"center" }}>
+                    <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.4rem", fontWeight:800, color:COLORS.accent.amber }}>{stats.totalSignals}</div>
+                    <div style={{ fontSize:"0.68rem", color:COLORS.text.muted, textTransform:"uppercase", fontWeight:600 }}>Signals</div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Congestion Overview */}
+          <div style={{ background:COLORS.bg.card, border:"1px solid rgba(127,119,221,0.1)", borderRadius:14, padding:"1.5rem" }}>
+            <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"0.95rem", fontWeight:700, color:COLORS.text.primary, marginBottom:"1.4rem" }}>
+              ◈ Congestion Overview
+            </div>
+            {loading ? (
+              <div style={{ color:COLORS.text.muted, fontSize:"0.85rem" }}>Loading...</div>
+            ) : (
+              <>
+                <SystemBar label="Total Congestions" value={stats.totalCongestions}    max={stats.totalCongestions||1}  color={COLORS.accent.coral} />
+                <SystemBar label="Approved"           value={stats.approvedCongestions} max={stats.totalCongestions||1} color={COLORS.accent.teal} />
+                <SystemBar label="Pending Review"     value={stats.pendingCongestions}  max={stats.totalCongestions||1} color={COLORS.accent.amber} />
+                <div style={{ marginTop:"1rem", paddingTop:"1rem", borderTop:"1px solid rgba(255,255,255,0.05)", display:"flex", gap:20 }}>
+                  <div style={{ textAlign:"center" }}>
+                    <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.4rem", fontWeight:800, color:COLORS.accent.coral }}>{stats.totalCongestions}</div>
+                    <div style={{ fontSize:"0.68rem", color:COLORS.text.muted, textTransform:"uppercase", fontWeight:600 }}>Total</div>
+                  </div>
+                  <div style={{ textAlign:"center" }}>
+                    <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.4rem", fontWeight:800, color:COLORS.accent.teal }}>{stats.approvedCongestions}</div>
+                    <div style={{ fontSize:"0.68rem", color:COLORS.text.muted, textTransform:"uppercase", fontWeight:600 }}>Approved</div>
+                  </div>
+                  <div style={{ textAlign:"center" }}>
+                    <div style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.4rem", fontWeight:800, color:COLORS.accent.amber }}>{stats.pendingCongestions}</div>
+                    <div style={{ fontSize:"0.68rem", color:COLORS.text.muted, textTransform:"uppercase", fontWeight:600 }}>Pending</div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,minmax(0,1fr))", gap:16, marginBottom:"2.5rem" }}>
-          {[
-            { label:"Total Sensors", value:stats.total,    color:COLORS.primary.light, icon:"📡" },
-            { label:"Active",        value:stats.active,   color:COLORS.accent.teal,   icon:"✅" },
-            { label:"Inactive",      value:stats.inactive, color:COLORS.accent.coral,  icon:"⚠️" },
-          ].map(card => <StatCard key={card.label} label={card.label} value={loading?"—":card.value} color={card.color} icon={card.icon} />)}
-        </div>
-
-        <div style={{ marginBottom:"2.5rem" }}>
-          <h2 style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.1rem", fontWeight:700, color:COLORS.text.primary, marginBottom:"1rem" }}>Quick Access</h2>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:14 }}>
-            {quickActions.map(action => <QuickCard key={action.label} {...action} onClick={() => navigate(action.path)} />)}
-          </div>
-        </div>
-
+        {/* ── Recent Congestions ── */}
         <div>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"1rem" }}>
-            <h2 style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.1rem", fontWeight:700, color:COLORS.text.primary }}>Recent Sensors</h2>
-            <button onClick={() => navigate("/admin/locations")} style={{ background:"transparent", border:`1px solid ${COLORS.primary.light}44`, color:COLORS.primary.light, borderRadius:8, padding:"0.38rem 0.9rem", fontSize:"0.78rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}
-              onMouseEnter={e=>e.target.style.background=`${COLORS.primary.light}18`}
-              onMouseLeave={e=>e.target.style.background="transparent"}>
+            <h2 style={{ fontFamily:"'Syne',sans-serif", fontSize:"1.05rem", fontWeight:700, color:COLORS.text.primary }}>Recent Congestions</h2>
+            <button onClick={() => navigate("/admin/congestion")}
+              onMouseEnter={e=>e.currentTarget.style.background=`${COLORS.primary.light}18`}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+              style={{ background:"transparent", border:`1px solid ${COLORS.primary.light}44`, color:COLORS.primary.light, borderRadius:8, padding:"0.38rem 0.9rem", fontSize:"0.78rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit", transition:"background 0.15s" }}>
               View all →
             </button>
           </div>
 
           <div style={{ background:COLORS.bg.card, border:"1px solid rgba(127,119,221,0.1)", borderRadius:14, overflow:"hidden" }}>
-            <div style={{ display:"grid", gridTemplateColumns:"60px 1fr 1fr 120px", padding:"0.75rem 1.4rem", borderBottom:"1px solid rgba(127,119,221,0.06)", fontSize:"0.7rem", color:COLORS.text.subtle, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:600 }}>
-              <span>ID</span><span>Name</span><span>Zone</span><span>Status</span>
+            <div style={{ display:"grid", gridTemplateColumns:"55px 105px 115px 85px 1fr 130px", padding:"0.7rem 1.4rem", borderBottom:"1px solid rgba(127,119,221,0.06)", fontSize:"0.65rem", color:COLORS.text.subtle, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:700 }}>
+              <span>ID</span><span>Level</span><span>Cause</span><span>Speed</span><span>Sensor</span><span>Date</span>
             </div>
 
             {loading ? (
-              <div style={{ padding:"2rem", textAlign:"center", color:COLORS.text.muted, fontSize:"0.85rem" }}>Loading...</div>
-            ) : recentSensors.length === 0 ? (
-              <div style={{ padding:"2rem", textAlign:"center", color:COLORS.text.muted, fontSize:"0.85rem" }}>No sensors yet</div>
-            ) : (
-              recentSensors.map((s, i) => {
-                const active = s.etat?.toUpperCase() === "ACTIF";
-                return (
-                  <div key={s.id} style={{ display:"grid", gridTemplateColumns:"60px 1fr 1fr 120px", padding:"0.9rem 1.4rem", borderBottom:i===recentSensors.length-1?"none":"1px solid rgba(127,119,221,0.06)", alignItems:"center" }}>
-                    <span style={{ fontSize:"0.8rem", color:COLORS.text.subtle, fontWeight:600 }}>#{s.id}</span>
-                    <span style={{ fontSize:"0.88rem", color:COLORS.text.primary, fontWeight:500 }}>{s.name}</span>
-                    {/* ✅ FIX: zone est un objet — afficher nomQuartier */}
-                    <span style={{ fontSize:"0.85rem", color:COLORS.text.muted }}>{s.zone?.nomQuartier || "—"}</span>
-                    <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:active?`${COLORS.accent.teal}18`:`${COLORS.accent.coral}18`, border:`1px solid ${active?COLORS.accent.teal:COLORS.accent.coral}44`, color:active?COLORS.accent.teal:"#F0997B", fontSize:"0.7rem", fontWeight:600, padding:"0.2rem 0.65rem", borderRadius:100, width:"fit-content" }}>
-                      <span style={{ width:5, height:5, borderRadius:"50%", background:active?COLORS.accent.teal:COLORS.accent.coral, display:"inline-block" }} />
-                      {active?"ACTIF":"INACTIF"}
-                    </span>
-                  </div>
-                );
-              })
-            )}
+              <div style={{ padding:"2.5rem", textAlign:"center", color:COLORS.text.muted }}>Loading...</div>
+            ) : recentCongestions.length === 0 ? (
+              <div style={{ padding:"2.5rem", textAlign:"center", color:COLORS.text.muted }}>No congestion data yet</div>
+            ) : recentCongestions.map((c, i) => {
+              const borderColor = { BLOCKED:COLORS.accent.coral, HEAVY:"#E24B4A", MODERATE:COLORS.accent.amber, LOW:COLORS.accent.teal }[c.niveau?.toUpperCase()] || COLORS.primary.light;
+              return (
+                <div key={c.id} style={{ display:"grid", gridTemplateColumns:"55px 105px 115px 85px 1fr 130px", padding:"0.88rem 1.4rem", borderBottom:i===recentCongestions.length-1?"none":"1px solid rgba(127,119,221,0.06)", alignItems:"center", borderLeft:`2px solid ${borderColor}` }}>
+                  <span style={{ fontSize:"0.78rem", color:COLORS.text.subtle, fontWeight:600 }}>#{c.id}</span>
+                  <NiveauBadge niveau={c.niveau} />
+                  <span style={{ fontSize:"0.78rem", color:COLORS.text.muted }}>{c.cause || "—"}</span>
+                  <span style={{ fontSize:"0.82rem", color:COLORS.accent.amber, fontWeight:500 }}>
+                    {c.vitesseMoy != null ? `${Number(c.vitesseMoy).toFixed(1)} km/h` : "—"}
+                  </span>
+                  <span style={{ fontSize:"0.78rem", color:COLORS.text.muted }}>
+                    {c.locationId ? `#${c.locationId}` : "—"}
+                  </span>
+                  <span style={{ fontSize:"0.72rem", color:COLORS.text.subtle }}>
+                    {c.heureDate ? new Date(c.heureDate).toLocaleString("en-GB", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" }) : "—"}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
+
       </div>
     </div>
   );

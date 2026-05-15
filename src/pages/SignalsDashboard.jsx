@@ -176,7 +176,7 @@ export default function SignalsDashboard() {
       if (res.status === 404) { setSignals([]); return; }
       const data = await res.json();
       setSignals(Array.isArray(data) ? data : []);
-    } catch (e) { showToast("Erreur de chargement", "error"); }
+    } catch (e) { showToast("Error loading signals", "error"); }
     finally { setLoading(false); }
   };
 
@@ -197,55 +197,53 @@ export default function SignalsDashboard() {
         const filtered = signals.filter(s => s.etatActuel?.toUpperCase().includes(val));
         setSearchResult(filtered);
       }
-      if ((searchResult?.length ?? 0) === 0) showToast("Aucun résultat", "error");
-    } catch (e) { showToast("Erreur de recherche", "error"); }
+      if ((searchResult?.length ?? 0) === 0) showToast("No results found", "error");
+    } catch (e) { showToast("Search error", "error"); }
     finally { setSearching(false); }
   };
 
   const clearSearch = () => { setSearchVal(""); setSearchResult(null); };
 
   const handleCreate = async () => {
-    if (!form.type || !form.etatActuel || !form.locationId) { showToast("Remplissez tous les champs", "error"); return; }
+    if (!form.type || !form.etatActuel || !form.locationId) { showToast("Please fill all fields", "error"); return; }
     try {
       const res = await fetch(`${API}/api/admin/newSignal`, {
         method:"POST", headers:getHeaders(),
         body:JSON.stringify({ type:form.type, etatActuel:form.etatActuel, locationId:parseInt(form.locationId) }),
       });
       if (!res.ok) throw new Error();
-      showToast("Signal créé avec succès");
+      showToast("Signal created successfully");
       setShowCreate(false); setForm(emptyForm); fetchAll();
-    } catch (e) { showToast("Erreur lors de la création", "error"); }
+    } catch (e) { showToast("Error creating signal", "error"); }
   };
 
   const handleUpdate = async () => {
-    if (!form.etatActuel) { showToast("Sélectionnez un état", "error"); return; }
+    if (!form.etatActuel) { showToast("Select a state", "error"); return; }
     try {
-      const res = await fetch(`${API}/api/admin/updateSignal/${showEdit.id}`, {
+      // ✅ Backend attend @RequestParam String state — pas un body JSON
+      const res = await fetch(`${API}/api/admin/updateSignal/${showEdit.id}?state=${form.etatActuel}`, {
         method:"PUT", headers:getHeaders(),
-        body:JSON.stringify({ etatActuel:form.etatActuel }),
       });
       if (!res.ok) throw new Error();
-      showToast("Signal mis à jour");
+      showToast("Signal updated successfully");
       setShowEdit(null); setForm(emptyForm); fetchAll();
-    } catch (e) { showToast("Erreur lors de la mise à jour", "error"); }
+    } catch (e) { showToast("Error updating signal", "error"); }
   };
 
   const handleDelete = async () => {
-    try {
-      const res = await fetch(`${API}/api/admin/signal/${showDelete.id}`, { method:"DELETE", headers:getHeaders() });
-      if (!res.ok) throw new Error();
-      showToast("Signal supprimé");
-      setShowDelete(null); fetchAll();
-    } catch (e) { showToast("Erreur lors de la suppression", "error"); }
+    // ⚠️ Aucun @DeleteMapping dans SignalRestController
+    // Ajoute dans le controller : @DeleteMapping("/api/admin/signal/{id}") public void deleteSignal(@PathVariable Long id) { signalRepository.deleteById(id); }
+    showToast("Delete endpoint not implemented in backend", "error");
+    setShowDelete(null);
   };
 
   const handleEmergency = async (signal) => {
     try {
       const res = await fetch(`${API}/api/admin/signalEmergency/${signal.locationId}`, { method:"POST", headers:getHeaders() });
       if (!res.ok) throw new Error();
-      showToast("🚨 Protocole d'urgence activé !");
+      showToast("🚨 Emergency protocol activated!");
       fetchAll();
-    } catch (e) { showToast("Erreur lors de l'activation", "error"); }
+    } catch (e) { showToast("Error activating emergency protocol", "error"); }
   };
 
   const openEdit = (signal) => {

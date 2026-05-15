@@ -31,7 +31,7 @@ function niveauColor(n) {
 }
 
 function niveauLabel(n) {
-  const map = { BLOCKED:"Blocked", HEAVY:"Critical", MODERATE:"High", LOW:"Moderate" };
+  const map = { BLOCKED:"Blocked", HEAVY:"Heavy", MODERATE:"Moderate", LOW:"Low" };
   return map[n?.toUpperCase()] || n || "Unknown";
 }
 
@@ -150,10 +150,23 @@ export default function CongestionDashboard() {
     const loadSensors = async () => {
       try {
         const res = await fetch(`${API}/api/users/sensors`, { headers:getHeaders() });
-        if (!res.ok) return;
+        console.log("Sensors status:", res.status);
+        if (!res.ok) {
+          // ✅ Fallback — crée des sensors fictifs depuis les IDs connus
+          console.warn("Sensors API failed, using fallback");
+          // Essaie de charger depuis /api/admin/data pour récupérer les locationIds
+          const dataRes = await fetch(`${API}/api/admin/data`, { headers:getHeaders() });
+          if (dataRes.ok) {
+            const trafficData = await dataRes.json();
+            const ids = [...new Set((Array.isArray(trafficData) ? trafficData : []).map(d => d.locationId).filter(Boolean))];
+            setSensors(ids.map(id => ({ id, name: `Location #${id}` })));
+          }
+          return;
+        }
         const data = await res.json();
+        console.log("Sensors loaded:", data?.length);
         setSensors(Array.isArray(data) ? data : []);
-      } catch(e) { console.error(e); }
+      } catch(e) { console.error("loadSensors error:", e); }
     };
     loadSensors();
     loadAllCongestions();
@@ -287,9 +300,9 @@ export default function CongestionDashboard() {
         <div style={{ display:"grid", gridTemplateColumns:"repeat(4,minmax(0,1fr))", gap:14, marginBottom:"1.5rem" }}>
           {[
             { label:"Blocked",  key:"BLOCKED",  color:COLORS.accent.coral, icon:"🔴" },
-            { label:"Critical", key:"HEAVY",    color:"#E24B4A",           icon:"🟠" },
-            { label:"High",     key:"MODERATE", color:COLORS.accent.amber, icon:"🟡" },
-            { label:"Moderate", key:"LOW",      color:COLORS.accent.teal,  icon:"🟢" },
+            { label:"Heavy",    key:"HEAVY",    color:"#E24B4A",           icon:"🟠" },
+            { label:"Moderate", key:"MODERATE", color:COLORS.accent.amber, icon:"🟡" },
+            { label:"Low",      key:"LOW",      color:COLORS.accent.teal,  icon:"🟢" },
           ].map(s => <StatCard key={s.key} label={s.label} value={counts[s.key]??0} color={s.color} icon={s.icon} />)}
         </div>
 
@@ -326,9 +339,9 @@ export default function CongestionDashboard() {
 
           <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:16 }}>
             {[
-              { icon:"🚗", label:"Vehicles",       value:latestData?.nbrVehicule??"-",                                              color:COLORS.text.primary },
-              { icon:"⚡", label:"Avg Speed km/h", value:latestData?.vitesseMoy!=null?Number(latestData.vitesseMoy).toFixed(0):"-", color:COLORS.accent.amber },
-              { icon:"📊", label:"Volume Traffic", value:latestData?.volumeTraffic!=null?Math.round(latestData.volumeTraffic):"-",  color:COLORS.text.primary },
+              { icon:"🚗", label:"Vehicles",       value:latestData?.nbrVehicule != null ? Number(latestData.nbrVehicule).toLocaleString("fr-FR") : "-",                                              color:COLORS.text.primary },
+              { icon:"⚡", label:"Avg Speed km/h", value:latestData?.vitesseMoy != null ? Number(latestData.vitesseMoy).toFixed(2) : "-", color:COLORS.accent.amber },
+              { icon:"📊", label:"Volume Traffic", value:latestData?.volumeTraffic != null ? Number(latestData.volumeTraffic).toFixed(2) : "-",  color:COLORS.text.primary },
               // ✅ Item 16 — Level affiché avec niveauLabel
               { icon:"🚦", label:"Level",          value:latestData ? niveauLabel(latestData.niveau) : "-",                         color:latestData ? niveauColor(latestData.niveau) : COLORS.text.subtle },
             ].map(stat => (
